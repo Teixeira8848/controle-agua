@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -56,13 +56,18 @@ async function carregarHistorico() {
         let html = "";
         snap.forEach(doc => {
             const d = doc.data();
+            const idDoc = doc.id; // Pega o ID único do documento no Firebase
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
+            // Adicionado o botão de lixeira no cabeçalho do cartão com o atributo data-id
             html += `
-            <div class="card-historico">
-                <div class="card-header">
+            <div class="card-historico" id="card-${idDoc}">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${d.tratamento} - ${d.caixa}</span>
-                    <span style="color: #007bff;">${dataHora}</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #007bff;">${dataHora}</span>
+                        <button class="btn-excluir" data-id="${idDoc}" style="background: none; border: none; color: #dc3545; font-size: 1.2rem; cursor: pointer; padding: 0;" title="Apagar Registro">🗑️</button>
+                    </div>
                 </div>
                 <p style="margin: 3px 0;"><strong>Turno:</strong> ${d.turno}</p>
                 <p style="margin: 3px 0;"><strong>Coletor:</strong> ${d.coletor}</p>
@@ -167,7 +172,27 @@ document.addEventListener('click', async (e) => {
     }
 
     // ==============================================
-    // GERAÇÃO DO RELATÓRIO (ESPAÇADO E EM BLOCOS)
+    // LÓGICA DE EXCLUSÃO (NOVIDADE)
+    // ==============================================
+    const btnExcluir = e.target.closest('.btn-excluir');
+    if (btnExcluir) {
+        const idDoc = btnExcluir.getAttribute('data-id');
+        
+        // Pede confirmação para evitar exclusão por acidente
+        if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
+            try {
+                await deleteDoc(doc(db, "medicoes", idDoc));
+                // Remove o cartão da tela visualmente ou recarrega a lista
+                carregarHistorico(); 
+                alert("Registro apagado com sucesso!");
+            } catch (err) {
+                alert("Erro ao apagar: " + err.message);
+            }
+        }
+    }
+
+    // ==============================================
+    // GERAÇÃO DO RELATÓRIO
     // ==============================================
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
@@ -184,7 +209,6 @@ document.addEventListener('click', async (e) => {
                 const dt = d.timestamp.toDate();
                 const dataStr = dt.toLocaleDateString();
                 const turno = d.turno || "Sem Turno";
-                // Cria um grupo único para cada Dia + Turno
                 const chaveGrupo = `${dataStr}_${turno}`;
 
                 if (!gruposMap[chaveGrupo]) {
@@ -200,16 +224,13 @@ document.addEventListener('click', async (e) => {
 
                 const chaveCaixa = `${d.tratamento}_${d.caixa}`;
                 
-                // Salva a medição. Se houver duas medições na mesma caixa no mesmo turno, mantém a mais recente.
                 if (!gruposMap[chaveGrupo].medicoes[chaveCaixa]) {
                     gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObj: dt };
                 }
             });
 
-            // Ordena os blocos do mais recente para o mais antigo
             gruposArray.sort((a, b) => b.ordem - a.ordem);
 
-            // A MÁGICA DA ORDEM PERFEITA DAS 9 CAIXAS
             const sequenciaCaixas = [
                 { t: "Tratamento 1", c: "Caixa 1" }, { t: "Tratamento 1", c: "Caixa 2" }, { t: "Tratamento 1", c: "Caixa 3" },
                 { t: "Tratamento 2", c: "Caixa 1" }, { t: "Tratamento 2", c: "Caixa 2" }, { t: "Tratamento 2", c: "Caixa 3" },
@@ -217,11 +238,10 @@ document.addEventListener('click', async (e) => {
             ];
 
             const cabecalho = "Data e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
-            let csv = "\ufeff"; // Padrão para acentuação correta no Excel
+            let csv = "\ufeff"; 
             
             const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
 
-            // Monta o arquivo Bloco a Bloco
             gruposArray.forEach((grupo, index) => {
                 csv += cabecalho; 
 
@@ -230,16 +250,13 @@ document.addEventListener('click', async (e) => {
                     const med = grupo.medicoes[chave];
 
                     if (med) {
-                        // Se a caixa foi preenchida, coloca os dados reais
                         const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}`;
                         csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
                     } else {
-                        // Se a caixa não foi medida, deixa a Data em branco para ficar limpo, mas mantém a estrutura!
                         csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
 
-                // Adiciona DUAS linhas em branco entre um bloco e outro para dar o espaçamento da sua foto
                 if (index < gruposArray.length - 1) {
                     csv += "\n\n";
                 }
