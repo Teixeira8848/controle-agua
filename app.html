@@ -1,51 +1,19 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registro de Parâmetros</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Parâmetros</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="container app-container">
-  <h1>Registro de Parâmetros</h1>
-  <div>
-    <label>Turno:</label>
-    <select id="turno">
-      <option>Manhã</option>
-      <option>Tarde</option>
-    </select>
+  <div class="container">
+    <h1>Coleta de Dados da Água</h1>
+    <p>Bem-vindo! Esta é a tela onde os dados dos kits serão inseridos.</p>
+    
+    <button id="btnSair" style="background-color: #dc3545; margin-top: 20px;">Sair do Sistema</button>
   </div>
-  <div>
-    <label>Tanque:</label>
-    <select id="tanque">
-      <option>Tratamento 1 - Caixa 1</option>
-      <option>Tratamento 1 - Caixa 2</option>
-      <option>Tratamento 1 - Caixa 3</option>
-      <option>Tratamento 2 - Caixa 1</option>
-      <option>Tratamento 2 - Caixa 2</option>
-      <option>Tratamento 2 - Caixa 3</option>
-      <option>Tratamento 3 - Caixa 1</option>
-      <option>Tratamento 3 - Caixa 2</option>
-      <option>Tratamento 3 - Caixa 3</option>
-    </select>
-  </div>
-  <h2>Colorimétrico</h2>
-  <input type="number" step="0.01" id="amonia" placeholder="Amônia (mg/L)">
-  <input type="number" step="0.01" id="nitrito" placeholder="Nitrito (mg/L)">
-  <input type="number" step="0.01" id="alcalinidade" placeholder="Alcalinidade (mg/L)">
-  <input type="number" step="0.01" id="dureza" placeholder="Dureza (mg/L)">
-  <h2>Multiparâmetro</h2>
-  <input type="number" step="0.01" id="ph" placeholder="pH">
-  <input type="number" step="0.01" id="od" placeholder="Oxigênio Dissolvido (mg/L)">
-  <input type="number" step="0.01" id="temperatura" placeholder="Temperatura (°C)">
-  <input type="text" id="condutividade" placeholder="Condutividade">
-  <input type="text" id="salinidade" placeholder="Salinidade">
-  <input type="text" id="solidos_totais" placeholder="Sólidos Totais">
-  <textarea id="observacoes" placeholder="Observações"></textarea>
-  <button id="salvarBtn">Salvar Registro</button>
-  <ul id="lista"></ul>
-</div>
-<script type="module" src="app.js"></script>
+  
+  <script type="module" src="app.js"></script>
 </body>
 </html>
