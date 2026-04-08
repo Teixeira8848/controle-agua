@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, addDoc, collection, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRLrik-rHVfDNz_gn2P4oYgraM64iHI0k",
@@ -13,99 +13,98 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
+const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-let usuarioAtual = null;
+const paginaAtual = window.location.pathname;
 
-// --- LOGIN GOOGLE ---
-window.loginGoogle = async function() {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    usuarioAtual = result.user;
+// -------------------------------------------------------------------
+// 1. GERENCIADOR DE ROTAS (O "Guarda de Trânsito")
+// -------------------------------------------------------------------
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const docRef = doc(db, "usuarios", user.uid);
+    const docSnap = await getDoc(docRef);
 
-    const userRef = doc(db, "usuarios", usuarioAtual.uid);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      window.location.href = "app.html";
+    if (docSnap.exists()) {
+      if (paginaAtual.endsWith("index.html") || paginaAtual.endsWith("cadastro.html") || paginaAtual === "/") {
+        window.location.href = "app.html";
+      }
     } else {
-      window.location.href = "cadastro.html";
+      if (!paginaAtual.endsWith("cadastro.html")) {
+        window.location.href = "cadastro.html";
+      }
     }
-  } catch (error) {
-    alert("Erro no login: " + error.message);
-  }
-};
-
-// --- CADASTRO ---
-window.addEventListener("DOMContentLoaded", () => {
-  const salvarBtn = document.getElementById("salvarBtn");
-  if (salvarBtn) {
-    salvarBtn.onclick = async () => {
-      const nome = document.getElementById("nome").value;
-      const fotoInput = document.getElementById("foto");
-
-      if (!nome) {
-        alert("Digite seu nome!");
-        return;
-      }
-
-      const userRef = doc(db, "usuarios", usuarioAtual.uid);
-      await setDoc(userRef, {
-        nome: nome,
-        foto: fotoInput.files[0] ? fotoInput.files[0].name : null,
-        email: usuarioAtual.email
-      });
-
-      alert("Cadastro salvo!");
-      window.location.href = "app.html";
-    };
-  }
-
-  // --- SALVAR REGISTRO ---
-  const salvarRegistroBtn = document.getElementById("salvarRegistro");
-  if (salvarRegistroBtn) {
-    salvarRegistroBtn.onclick = async () => {
-      const turno = document.getElementById("turno").value;
-      const tanque = document.getElementById("tanque").value;
-
-      const registro = {
-        usuario: usuarioAtual.displayName || usuarioAtual.email,
-        dataHora: new Date().toISOString(),
-        turno,
-        tanque,
-        colorimetrico: {
-          amonia_mg_L: parseFloat(document.getElementById("amonia").value) || null,
-          nitrito_mg_L: parseFloat(document.getElementById("nitrito").value) || null,
-          alcalinidade_mg_L: parseFloat(document.getElementById("alcalinidade").value) || null,
-          dureza_mg_L: parseFloat(document.getElementById("dureza").value) || null
-        },
-        multiparametro: {
-          ph: parseFloat(document.getElementById("ph").value) || null,
-          oxigenio_dissolvido_mg_L: parseFloat(document.getElementById("od").value) || null,
-          temperatura_C: parseFloat(document.getElementById("temperatura").value) || null,
-          condutividade: parseFloat(document.getElementById("condutividade").value) || null,
-          salinidade: parseFloat(document.getElementById("salinidade").value) || null,
-          solidos_totais: parseFloat(document.getElementById("solidos").value) || null
-        },
-        observacoes: document.getElementById("observacoes").value
-      };
-
-      await addDoc(collection(db, "registros"), registro);
-      alert("Registro salvo!");
-
-      // Atualiza lista
-      const lista = document.getElementById("lista");
-      if (lista) {
-        const item = document.createElement("li");
-        item.innerHTML = `
-          <strong>${registro.usuario}</strong><br>
-          Turno: ${registro.turno} | Tanque: ${registro.tanque}<br>
-          pH: ${registro.multiparametro.ph} | OD: ${registro.multiparametro.oxigenio_dissolvido_mg_L}<br>
-          Data: ${new Date(registro.dataHora).toLocaleString()}<hr>
-        `;
-        lista.appendChild(item);
-      }
-    };
+  } else {
+    if (!paginaAtual.endsWith("index.html") && paginaAtual !== "/") {
+      window.location.href = "index.html";
+    }
   }
 });
+
+// -------------------------------------------------------------------
+// 2. TELA DE LOGIN (index.html)
+// -------------------------------------------------------------------
+const btnLogin = document.getElementById("loginGoogleBtn");
+if (btnLogin) {
+  btnLogin.addEventListener("click", async () => {
+    try {
+      btnLogin.innerText = "Abrindo Google...";
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Erro no login:", error);
+      alert("Erro ao tentar logar com o Google.");
+      btnLogin.innerText = "Entrar com Google";
+    }
+  });
+}
+
+// -------------------------------------------------------------------
+// 3. TELA DE CADASTRO (cadastro.html)
+// -------------------------------------------------------------------
+// O JavaScript agora "fisga" o botão diretamente, sem bloqueios de tempo.
+const btnSalvar = document.getElementById("btnSalvar");
+
+if (btnSalvar) {
+  btnSalvar.addEventListener("click", async (event) => {
+    event.preventDefault(); // Impede a página de recarregar sozinha
+    
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Sincronizando com o Google... clique novamente em 1 segundo.");
+      return; 
+    }
+
+    const nome = document.getElementById("nome").value;
+    const fotoInput = document.getElementById("foto");
+
+    if (!nome) {
+      alert("Por favor, digite o seu nome para os relatórios.");
+      return;
+    }
+
+    try {
+      // Trava o botão para não enviar 2 vezes
+      btnSalvar.innerText = "Salvando...";
+      btnSalvar.disabled = true;
+
+      // Salva no banco de dados usando o ID único do Google
+      await setDoc(doc(db, "usuarios", user.uid), {
+        nome: nome,
+        email: user.email,
+        foto: fotoInput.files[0] ? fotoInput.files[0].name : null,
+        dataCadastro: new Date()
+      });
+      
+      alert("Perfil criado com sucesso!");
+      window.location.href = "app.html"; 
+      
+    } catch (err) {
+      console.error("Erro ao salvar no banco:", err);
+      alert("Erro de conexão. Verifique a internet e tente novamente.");
+      btnSalvar.innerText = "Salvar";
+      btnSalvar.disabled = false;
+    }
+  });
+}
