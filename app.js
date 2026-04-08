@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 // ==========================================
-// 1. FUNÇÕES DE INTERFACE
+// FUNÇÕES DE INTERFACE SEGURAS
 // ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
@@ -30,8 +30,14 @@ function escrever(id, texto) {
     if (el) el.innerText = texto;
 }
 
+// Helper para pegar valores numéricos em segurança (lida com os opcionais)
+const getVal = (id) => {
+    const el = document.getElementById(id);
+    return (el && el.value !== "") ? parseFloat(el.value) : null;
+};
+
 // ==========================================
-// 2. MONITOR DE AUTENTICAÇÃO (O "CÉREBRO")
+// MONITOR DE AUTENTICAÇÃO (CONTROLA O LOOP)
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -48,7 +54,7 @@ onAuthStateChanged(auth, async (user) => {
                 mostrarTela("telaCadastro");
             }
         } catch (e) {
-            console.error("Erro no BD:", e);
+            console.error(e);
             mostrarTela("telaLogin");
         }
     } else {
@@ -56,37 +62,30 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Captura do celular
-getRedirectResult(auth).then(result => {
-    if(result?.user) console.log("Celular logado via Redirect!");
-}).catch(e => console.error("Erro no Redirect do celular:", e));
-
+getRedirectResult(auth).catch(e => console.error("Redirect Error:", e));
 
 // ==========================================
-// 3. DELEGAÇÃO DE EVENTOS (CÓDIGO ANTI-TRAVAMENTO)
-// Isso impede o erro "Cannot set properties of null"
+// DELEGAÇÃO DE EVENTOS (À PROVA DE TRAVAMENTO)
 // ==========================================
 document.addEventListener('click', async (e) => {
     
-    // BOTÃO LOGIN
+    // LOGIN
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Conectando...";
         try {
             await setPersistence(auth, browserLocalPersistence);
-            // Celular usa Redirect, PC usa Popup
             if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
                 await signInWithRedirect(auth, provider);
             } else {
                 await signInWithPopup(auth, provider);
             }
         } catch (err) {
-            console.error(err);
             e.target.innerText = "Entrar com Google";
-            alert("Erro ao abrir janela de login. Atualize a página.");
+            alert("Erro ao conectar.");
         }
     }
 
-    // BOTÃO SALVAR CADASTRO
+    // CADASTRO
     if (e.target.id === 'btnSalvarCadastro') {
         const nomeEl = document.getElementById("nomeCadastro");
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
@@ -96,31 +95,28 @@ document.addEventListener('click', async (e) => {
                 nome: nomeEl.value, email: auth.currentUser.email, data: new Date()
             });
             window.location.reload();
-        } catch (err) { 
-            alert("Erro: " + err.message); 
-            e.target.innerText = "Finalizar Cadastro";
-        }
+        } catch (err) { alert("Erro: " + err.message); }
     }
 
-    // BOTÃO BAIXAR RELATÓRIO
+    // RELATÓRIO (RESTAURADO COM TODAS AS COLUNAS)
     if (e.target.id === 'btnBaixarRelatorio') {
         try {
             const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
-            let csv = "\ufeffData,Coletor,Tanque,Amonia,pH\n";
+            let csv = "\ufeffData,Hora,Turno,Coletor,Tratamento,Caixa,Amonia,Nitrito,Alcalinidade,Dureza,pH,OD,Temp,Condutividade,Salinidade,Solidos\n";
             snap.forEach(doc => {
                 const d = doc.data();
-                const dt = d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "";
-                csv += `${dt},${d.coletor},${d.tanque},${d.amonia},${d.ph}\n`;
+                const dt = d.timestamp ? d.timestamp.toDate() : new Date();
+                csv += `${dt.toLocaleDateString()},${dt.toLocaleTimeString()},${d.turno},${d.coletor},${d.tratamento},${d.caixa},${d.amonia??""},${d.nitrito??""},${d.alcalinidade??""},${d.dureza??""},${d.ph??""},${d.od??""},${d.temperatura??""},${d.condutividade??""},${d.salinidade??""},${d.solidos??""}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "relatorio.csv";
+            link.download = "bagrinhos_relatorio.csv";
             link.click();
-        } catch (err) { alert("Erro: " + err.message); }
+        } catch (err) { alert("Erro no relatório: " + err.message); }
     }
 
-    // ABAS DA INTERFACE
+    // ABAS E LOGOUT
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
         document.getElementById("secaoPerfil").style.display = "none";
@@ -129,36 +125,4 @@ document.addEventListener('click', async (e) => {
         document.getElementById("secaoRegistro").style.display = "none";
         document.getElementById("secaoPerfil").style.display = "block";
     }
-
-    // BOTÃO SAIR
-    if (e.target.id === 'btnSair') {
-        await signOut(auth);
-        window.location.reload();
-    }
-});
-
-// ==========================================
-// 4. DELEGAÇÃO DE FORMULÁRIO (SALVAR MEDIÇÃO)
-// ==========================================
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'formMedicao') {
-        e.preventDefault();
-        const btn = document.getElementById("btnSalvarMedicao");
-        if(btn) btn.disabled = true;
-        try {
-            await addDoc(collection(db, "medicoes"), {
-                coletor: document.getElementById("userNameHeader").innerText,
-                tanque: document.getElementById("tanque").value,
-                amonia: parseFloat(document.getElementById("amonia").value),
-                ph: parseFloat(document.getElementById("ph").value),
-                timestamp: serverTimestamp()
-            });
-            alert("✅ Medição salva com sucesso!");
-            e.target.reset();
-        } catch (err) { 
-            alert("Erro: " + err.message); 
-        } finally { 
-            if(btn) btn.disabled = false; 
-        }
-    }
-});
+    if (
