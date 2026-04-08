@@ -19,8 +19,15 @@ const provider = new GoogleAuthProvider();
 
 let dadosUsuarioLocal = null;
 
-// --- 1. GERENCIADOR DE LOGIN E ROTAS ---
+// --- 1. CAPTURAR RESULTADO DO REDIRECT (Essencial para Celular) ---
+getRedirectResult(auth).catch((error) => {
+    console.error("Erro ao recuperar resultado do login:", error);
+});
+
+// --- 2. GERENCIADOR DE LOGIN E ROTAS ---
 onAuthStateChanged(auth, async (user) => {
+  const path = window.location.pathname;
+  
   if (user) {
     const docRef = doc(db, "usuarios", user.uid);
     try {
@@ -30,42 +37,49 @@ onAuthStateChanged(auth, async (user) => {
         if (document.getElementById("userNameHeader")) {
           atualizarUIPerfil(user, dadosUsuarioLocal);
         }
-        if (window.location.pathname.endsWith("index.html") || window.location.pathname === "/") {
+        // Se estiver na tela de login, vai para o app
+        if (path.endsWith("index.html") || path === "/") {
           window.location.href = "app.html";
         }
-      } else if (!window.location.pathname.endsWith("cadastro.html")) {
-        window.location.href = "cadastro.html";
+      } else {
+        // Se logou mas não tem cadastro, vai para cadastro
+        if (!path.endsWith("cadastro.html")) {
+          window.location.href = "cadastro.html";
+        }
       }
     } catch (e) { console.error("Erro ao buscar usuário:", e); }
   } else {
-    if (!window.location.pathname.endsWith("index.html") && window.location.pathname !== "/") {
-      window.location.href = "index.html";
+    // Se não há usuário, mas o Firebase ainda pode estar carregando (espera 2 segundos)
+    // Só redireciona se tiver certeza que não está logado e não está na index
+    if (!path.endsWith("index.html") && path !== "/") {
+       // Pequeno atraso para evitar o loop antes do Firebase inicializar
+       setTimeout(() => {
+           if (!auth.currentUser) window.location.href = "index.html";
+       }, 1500);
     }
   }
 });
 
-// --- 2. TELA DE LOGIN (index.html) - VERSÃO HÍBRIDA (POPUP + REDIRECT) ---
+// --- 3. BOTÃO DE LOGIN ---
 const btnLogin = document.getElementById("loginGoogleBtn");
 if (btnLogin) {
   btnLogin.onclick = async () => {
     try {
       btnLogin.innerText = "Conectando...";
-      
-      // Se for celular (tela pequena), usa Redirect. Se for PC, usa Popup.
-      if (window.innerWidth < 768) {
+      // Força o Redirect no celular para evitar o erro de 'missing state'
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
         await signInWithRedirect(auth, provider);
       } else {
         await signInWithPopup(auth, provider);
       }
     } catch (error) {
-      console.error(error);
-      alert("Erro ao logar. Certifique-se de estar usando o Chrome ou Safari fora de outros apps.");
+      alert("Erro no login. Use o navegador Chrome ou Safari.");
       btnLogin.innerText = "Entrar com Google";
     }
   };
 }
 
-// --- 3. TELA DE CADASTRO (cadastro.html) ---
+// --- 4. TELA DE CADASTRO ---
 const btnSalvar = document.getElementById("btnSalvar");
 if (btnSalvar) {
   btnSalvar.onclick = async (e) => {
@@ -81,11 +95,11 @@ if (btnSalvar) {
         dataCadastro: new Date() 
       });
       window.location.href = "app.html";
-    } catch (err) { alert("Erro ao salvar cadastro."); btnSalvar.disabled = false; }
+    } catch (err) { alert("Erro ao salvar."); btnSalvar.disabled = false; }
   };
 }
 
-// --- 4. TELA DO APP (Perfil e Abas) ---
+// --- 5. INTERFACE DO APP (ABAS E PERFIL) ---
 function atualizarUIPerfil(user, dados) {
     if (document.getElementById("userNameHeader")) document.getElementById("userNameHeader").innerText = dados.nome;
     if (document.getElementById("userEmailHeader")) document.getElementById("userEmailHeader").innerText = user.email;
@@ -97,7 +111,6 @@ function atualizarUIPerfil(user, dados) {
     }
 }
 
-// Troca de Abas
 const tReg = document.getElementById("tabRegistro");
 const tPer = document.getElementById("tabPerfil");
 if (tReg && tPer) {
@@ -127,7 +140,7 @@ document.getElementById("btnAtualizarPerfil")?.addEventListener("click", async (
     } catch (e) { alert("Erro ao atualizar."); }
 });
 
-// --- 5. SALVAR MEDIÇÃO E RELATÓRIO ---
+// --- 6. SALVAR MEDIÇÃO ---
 const formMedicao = document.getElementById("formMedicao");
 if (formMedicao) {
   formMedicao.onsubmit = async (e) => {
@@ -152,15 +165,15 @@ if (formMedicao) {
     };
     try {
       await addDoc(collection(db, "medicoes"), dados);
-      alert("Medição salva com sucesso!");
+      alert("Medição salva!");
       document.getElementById("tratamento").value = "";
       document.getElementById("caixa").value = "";
-    } catch (err) { alert("Erro ao salvar medição."); }
+    } catch (err) { alert("Erro ao salvar."); }
     finally { btn.disabled = false; }
   };
 }
 
-// Relatório CSV
+// Relatório
 document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async () => {
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"));
@@ -174,7 +187,7 @@ document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async (
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `relatorio_agua_${new Date().toLocaleDateString()}.csv`;
+        link.download = "relatorio.csv";
         link.click();
     } catch (e) { alert("Erro no relatório."); }
 });
