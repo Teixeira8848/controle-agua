@@ -19,7 +19,7 @@ const provider = new GoogleAuthProvider();
 let isAdmin = false; 
 
 // ==========================================
-// FUNÇÕES DE UTILIDADE E INTERFACE
+// FUNÇÕES DE INTERFACE
 // ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
@@ -38,12 +38,11 @@ const getVal = (id) => {
 };
 
 // ==========================================
-// FUNÇÃO PARA CARREGAR O HISTÓRICO
+// FUNÇÃO HISTÓRICO (AGORA COM BOTÃO VERMELHO)
 // ==========================================
 async function carregarHistorico() {
     const lista = document.getElementById("listaHistorico");
     if (!lista) return;
-    
     lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as últimas 20 coletas...</p>';
     
     try {
@@ -61,7 +60,8 @@ async function carregarHistorico() {
             const idDoc = doc.id;
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            const botaoLixeiraHtml = isAdmin ? `<button class="btn-excluir" data-id="${idDoc}" style="background: none; border: none; color: #dc3545; font-size: 1.2rem; cursor: pointer; padding: 0;" title="Apagar Registro">🗑️</button>` : '';
+            // Botão alterado de lixeira para "Excluir" em vermelho
+            const botaoExcluirHtml = isAdmin ? `<button class="btn-excluir-novo" data-id="${idDoc}">Excluir</button>` : '';
 
             html += `
             <div class="card-historico" id="card-${idDoc}">
@@ -69,7 +69,7 @@ async function carregarHistorico() {
                     <span>${d.tratamento} - ${d.caixa}</span>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="color: #007bff;">${dataHora}</span>
-                        ${botaoLixeiraHtml}
+                        ${botaoExcluirHtml}
                     </div>
                 </div>
                 <p style="margin: 3px 0;"><strong>Turno:</strong> ${d.turno}</p>
@@ -94,6 +94,53 @@ async function carregarHistorico() {
     } catch (e) {
         console.error("Erro no histórico:", e);
         lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o histórico.</p>';
+    }
+}
+
+// ==========================================
+// FUNÇÃO PAINEL ADMIN (CARREGAR USUÁRIOS)
+// ==========================================
+async function carregarListaUsuarios() {
+    const listaUsuarios = document.getElementById("listaUsuariosAdmin");
+    if (!listaUsuarios || !isAdmin) return;
+    
+    listaUsuarios.innerHTML = '<p style="text-align: center; color: #666;">Buscando equipe...</p>';
+
+    try {
+        const snap = await getDocs(collection(db, "usuarios"));
+        let html = "";
+        
+        snap.forEach(docSnap => {
+            const u = docSnap.data();
+            const uId = docSnap.id;
+            
+            // Impede que você remova o seu próprio admin acidentalmente
+            const isEuMesmo = (uId === auth.currentUser.uid);
+            
+            let btnAcao = "";
+            if (isEuMesmo) {
+                btnAcao = `<span style="font-size: 0.8rem; color: #28a745; font-weight: bold;">(Você)</span>`;
+            } else if (u.admin) {
+                btnAcao = `<button class="btn-toggle-admin" data-uid="${uId}" data-status="remover" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Remover Admin</button>`;
+            } else {
+                btnAcao = `<button class="btn-toggle-admin" data-uid="${uId}" data-status="dar" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Tornar Admin</button>`;
+            }
+
+            html += `
+            <div class="card-usuario">
+                <div>
+                    <strong>${u.nome}</strong><br>
+                    <span style="font-size: 0.75rem; color: #666;">${u.email}</span>
+                </div>
+                <div>${btnAcao}</div>
+            </div>
+            `;
+        });
+        
+        listaUsuarios.innerHTML = html;
+    } catch (err) {
+        console.error(err);
+        listaUsuarios.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar usuários.</p>';
     }
 }
 
@@ -124,19 +171,24 @@ onAuthStateChanged(auth, async (user) => {
                 escrever("userIniciaisSmall", inicial);
                 escrever("userIniciaisLarge", inicial);
 
-                // Armadura de segurança: só tenta mudar se os elementos existirem no HTML
                 if (isAdmin) {
                     const btnPlanilha = document.getElementById("btnBaixarRelatorio");
                     if (btnPlanilha) btnPlanilha.style.display = "block";
                     
                     const badge = document.getElementById("badgeAdmin");
                     if (badge) badge.style.display = "block";
+                    
+                    // Revela a aba Admin
+                    const tabAdmin = document.getElementById("tabAdmin");
+                    if (tabAdmin) tabAdmin.style.display = "block";
                 } else {
                     const btnPlanilha = document.getElementById("btnBaixarRelatorio");
                     if (btnPlanilha) btnPlanilha.style.display = "none";
+                    
+                    const tabAdmin = document.getElementById("tabAdmin");
+                    if (tabAdmin) tabAdmin.style.display = "none";
                 }
 
-                // Reseta o texto do botão caso tenha ficado preso
                 const btnLogin = document.getElementById('loginGoogleBtn');
                 if (btnLogin) btnLogin.innerText = "Entrar com Google";
 
@@ -145,7 +197,6 @@ onAuthStateChanged(auth, async (user) => {
                 mostrarTela("telaCadastro");
             }
         } catch (e) {
-            console.error("Erro no carregamento do perfil:", e);
             const btnLogin = document.getElementById('loginGoogleBtn');
             if (btnLogin) btnLogin.innerText = "Entrar com Google";
             mostrarTela("telaLogin");
@@ -158,7 +209,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE E PLANILHA EM BLOCOS
+// EVENTOS DE CLIQUE (ABAS E ADMINISTRAÇÃO)
 // ==========================================
 document.addEventListener('click', async (e) => {
     
@@ -171,7 +222,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) {
             e.target.innerText = "Entrar com Google";
             if (err.code === 'auth/popup-blocked') {
-                alert("Seu navegador bloqueou o pop-up de login. Por favor, permita pop-ups para este site.");
+                alert("Seu navegador bloqueou o pop-up de login.");
             } else { alert("Falha no login."); }
         }
     }
@@ -182,13 +233,10 @@ document.addEventListener('click', async (e) => {
         e.target.innerText = "Salvando...";
         try {
             await setDoc(doc(db, "usuarios", auth.currentUser.uid), { 
-                nome: nomeEl.value, 
-                email: auth.currentUser.email, 
-                admin: false,
-                dataCadastro: new Date() 
+                nome: nomeEl.value, email: auth.currentUser.email, admin: false, dataCadastro: new Date() 
             });
             window.location.reload();
-        } catch (err) { alert("Erro ao salvar: " + err.message); }
+        } catch (err) { alert("Erro: " + err.message); }
     }
 
     if (e.target.id === 'btnAtualizarPerfil') {
@@ -199,11 +247,11 @@ document.addEventListener('click', async (e) => {
             await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: novoNome });
             alert("Nome atualizado com sucesso!");
             window.location.reload();
-        } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
+        } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // LÓGICA DE EXCLUSÃO (Protegida)
-    const btnExcluir = e.target.closest('.btn-excluir');
+    // EXCLUIR HISTÓRICO (BOTÃO VERMELHO NOVO)
+    const btnExcluir = e.target.closest('.btn-excluir-novo');
     if (btnExcluir) {
         if (!isAdmin) return alert("Apenas administradores podem apagar registros."); 
 
@@ -212,14 +260,72 @@ document.addEventListener('click', async (e) => {
             try {
                 await deleteDoc(doc(db, "medicoes", idDoc));
                 carregarHistorico(); 
-                alert("Registro apagado com sucesso!");
-            } catch (err) {
-                alert("Erro ao apagar: " + err.message);
-            }
+            } catch (err) { alert("Erro: " + err.message); }
         }
     }
 
-    // GERAÇÃO DO RELATÓRIO (Protegida)
+    // DAR OU REMOVER PODER DE ADMIN DE OUTRO USUÁRIO
+    const btnToggleAdmin = e.target.closest('.btn-toggle-admin');
+    if (btnToggleAdmin) {
+        if (!isAdmin) return alert("Acesso negado.");
+        const alvoUid = btnToggleAdmin.getAttribute('data-uid');
+        const acao = btnToggleAdmin.getAttribute('data-status');
+        const vaiSerAdmin = (acao === 'dar');
+
+        const msgConfirmacao = vaiSerAdmin 
+            ? "Tem certeza que deseja promover este usuário a Administrador? Ele poderá apagar coletas e baixar a base de dados." 
+            : "Tem certeza que deseja remover o acesso de Administrador deste usuário?";
+
+        if (confirm(msgConfirmacao)) {
+            try {
+                await updateDoc(doc(db, "usuarios", alvoUid), { admin: vaiSerAdmin });
+                alert("Permissões atualizadas com sucesso!");
+                carregarListaUsuarios(); // Recarrega a tela na hora
+            } catch (err) { alert("Erro ao atualizar permissão: " + err.message); }
+        }
+    }
+
+    // ==========================================
+    // SISTEMA DE TROCA DE ABAS (AGORA SÃO 4)
+    // ==========================================
+    const abas = [
+        { btn: 'tabRegistro', tela: 'secaoRegistro' },
+        { btn: 'tabHistorico', tela: 'secaoHistorico' },
+        { btn: 'tabPerfil', tela: 'secaoPerfil' },
+        { btn: 'tabAdmin', tela: 'secaoAdmin' }
+    ];
+
+    const clicouNumaAba = abas.find(a => a.btn === e.target.id);
+    if (clicouNumaAba) {
+        abas.forEach(aba => {
+            const btnEl = document.getElementById(aba.btn);
+            const telaEl = document.getElementById(aba.tela);
+            if (btnEl && telaEl) {
+                if (aba.btn === e.target.id) {
+                    telaEl.style.display = "block";
+                    btnEl.style.backgroundColor = "#007bff"; // Ativa (Azul)
+                } else {
+                    telaEl.style.display = "none";
+                    btnEl.style.backgroundColor = "#6c757d"; // Inativa (Cinza)
+                }
+            }
+        });
+
+        // Dispara as funções de carregar dados dependendo de qual aba abriu
+        if (e.target.id === 'tabHistorico') carregarHistorico();
+        if (e.target.id === 'tabAdmin') carregarListaUsuarios();
+    }
+
+    if (e.target.id === 'btnAtualizarHistorico') carregarHistorico();
+    
+    if (e.target.id === 'btnSair') {
+        await signOut(auth);
+        window.location.reload();
+    }
+
+    // ==============================================
+    // GERAÇÃO DO RELATÓRIO EM BLOCOS
+    // ==============================================
     if (e.target.id === 'btnBaixarRelatorio') {
         if (!isAdmin) return alert("Acesso Negado."); 
         
@@ -240,18 +346,12 @@ document.addEventListener('click', async (e) => {
                 const chaveGrupo = `${dataStr}_${turno}`;
 
                 if (!gruposMap[chaveGrupo]) {
-                    const novoGrupo = {
-                        dataStr: dataStr,
-                        turno: turno,
-                        ordem: dt.getTime(), 
-                        medicoes: {}
-                    };
+                    const novoGrupo = { dataStr: dataStr, turno: turno, ordem: dt.getTime(), medicoes: {} };
                     gruposMap[chaveGrupo] = novoGrupo;
                     gruposArray.push(novoGrupo);
                 }
 
                 const chaveCaixa = `${d.tratamento}_${d.caixa}`;
-                
                 if (!gruposMap[chaveGrupo].medicoes[chaveCaixa]) {
                     gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObj: dt };
                 }
@@ -267,12 +367,10 @@ document.addEventListener('click', async (e) => {
 
             const cabecalho = "Data e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
             let csv = "\ufeff"; 
-            
             const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
 
             gruposArray.forEach((grupo, index) => {
                 csv += cabecalho; 
-
                 sequenciaCaixas.forEach(caixaAlvo => {
                     const chave = `${caixaAlvo.t}_${caixaAlvo.c}`;
                     const med = grupo.medicoes[chave];
@@ -284,58 +382,16 @@ document.addEventListener('click', async (e) => {
                         csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
-
-                if (index < gruposArray.length - 1) {
-                    csv += "\n\n";
-                }
+                if (index < gruposArray.length - 1) csv += "\n\n";
             });
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "relatorio_bagrinhos_blocos.csv";
+            link.download = "relatorio_bagrinhos.csv";
             link.click();
-
         } catch (err) { alert("Erro no relatório: " + err.message); }
         finally { e.target.innerText = "📥 Planilha"; }
-    }
-
-    // CONTROLE DE ABAS E SAÍDA
-    if (e.target.id === 'tabRegistro') {
-        document.getElementById("secaoRegistro").style.display = "block";
-        document.getElementById("secaoHistorico").style.display = "none";
-        document.getElementById("secaoPerfil").style.display = "none";
-        document.getElementById("tabRegistro").style.backgroundColor = "#007bff";
-        document.getElementById("tabHistorico").style.backgroundColor = "#6c757d";
-        document.getElementById("tabPerfil").style.backgroundColor = "#6c757d";
-    }
-    
-    if (e.target.id === 'tabHistorico') {
-        document.getElementById("secaoRegistro").style.display = "none";
-        document.getElementById("secaoHistorico").style.display = "block";
-        document.getElementById("secaoPerfil").style.display = "none";
-        document.getElementById("tabHistorico").style.backgroundColor = "#007bff";
-        document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
-        document.getElementById("tabPerfil").style.backgroundColor = "#6c757d";
-        carregarHistorico();
-    }
-
-    if (e.target.id === 'tabPerfil') {
-        document.getElementById("secaoRegistro").style.display = "none";
-        document.getElementById("secaoHistorico").style.display = "none";
-        document.getElementById("secaoPerfil").style.display = "block";
-        document.getElementById("tabPerfil").style.backgroundColor = "#007bff";
-        document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
-        document.getElementById("tabHistorico").style.backgroundColor = "#6c757d";
-    }
-
-    if (e.target.id === 'btnAtualizarHistorico') {
-        carregarHistorico();
-    }
-
-    if (e.target.id === 'btnSair') {
-        await signOut(auth);
-        window.location.reload();
     }
 });
 
@@ -368,9 +424,7 @@ document.addEventListener('submit', async (e) => {
                 timestamp: serverTimestamp()
             });
             alert("Medição salva com sucesso!");
-            
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
-            
         } catch (err) { 
             alert("Erro ao salvar: " + err.message); 
         } finally { 
