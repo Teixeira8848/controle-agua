@@ -17,6 +17,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 let isAdmin = false; 
+let registrosAtuais = {}; // Guarda os dados dos cards para poder editar sem buscar no banco de novo
 
 // ==========================================
 // FUNÇÕES DE INTERFACE
@@ -38,7 +39,7 @@ const getVal = (id) => {
 };
 
 // ==========================================
-// FUNÇÃO HISTÓRICO (AGORA COM BOTÃO VERMELHO)
+// FUNÇÃO HISTÓRICO
 // ==========================================
 async function carregarHistorico() {
     const lista = document.getElementById("listaHistorico");
@@ -55,21 +56,31 @@ async function carregarHistorico() {
         }
 
         let html = "";
+        registrosAtuais = {}; // Limpa a memória
+        
         snap.forEach(doc => {
             const d = doc.data();
             const idDoc = doc.id;
+            registrosAtuais[idDoc] = d; // Salva na memória para a tela de edição
+            
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Botão alterado de lixeira para "Excluir" em vermelho
-            const botaoExcluirHtml = isAdmin ? `<button class="btn-excluir-novo" data-id="${idDoc}">Excluir</button>` : '';
+            // Botões de Admin (Lápis para editar e Vermelho para Excluir)
+            let botoesAdmin = "";
+            if (isAdmin) {
+                botoesAdmin = `
+                    <button class="btn-editar" data-id="${idDoc}">✏️</button>
+                    <button class="btn-excluir-novo" data-id="${idDoc}">Excluir</button>
+                `;
+            }
 
             html += `
             <div class="card-historico" id="card-${idDoc}">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${d.tratamento} - ${d.caixa}</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #007bff;">${dataHora}</span>
-                        ${botaoExcluirHtml}
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="color: #007bff; margin-right: 5px;">${dataHora}</span>
+                        ${botoesAdmin}
                     </div>
                 </div>
                 <p style="margin: 3px 0;"><strong>Turno:</strong> ${d.turno}</p>
@@ -98,7 +109,7 @@ async function carregarHistorico() {
 }
 
 // ==========================================
-// FUNÇÃO PAINEL ADMIN (CARREGAR USUÁRIOS)
+// FUNÇÃO PAINEL ADMIN 
 // ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
@@ -114,7 +125,6 @@ async function carregarListaUsuarios() {
             const u = docSnap.data();
             const uId = docSnap.id;
             
-            // Impede que você remova o seu próprio admin acidentalmente
             const isEuMesmo = (uId === auth.currentUser.uid);
             
             let btnAcao = "";
@@ -178,7 +188,6 @@ onAuthStateChanged(auth, async (user) => {
                     const badge = document.getElementById("badgeAdmin");
                     if (badge) badge.style.display = "block";
                     
-                    // Revela a aba Admin
                     const tabAdmin = document.getElementById("tabAdmin");
                     if (tabAdmin) tabAdmin.style.display = "block";
                 } else {
@@ -209,11 +218,10 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE (ABAS E ADMINISTRAÇÃO)
+// EVENTOS DE CLIQUE GERAIS
 // ==========================================
 document.addEventListener('click', async (e) => {
     
-    // LOGIN E CADASTRO
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Aguarde...";
         try {
@@ -221,9 +229,8 @@ document.addEventListener('click', async (e) => {
             await signInWithPopup(auth, provider);
         } catch (err) {
             e.target.innerText = "Entrar com Google";
-            if (err.code === 'auth/popup-blocked') {
-                alert("Seu navegador bloqueou o pop-up de login.");
-            } else { alert("Falha no login."); }
+            if (err.code === 'auth/popup-blocked') { alert("Seu navegador bloqueou o pop-up de login."); } 
+            else { alert("Falha no login."); }
         }
     }
 
@@ -232,9 +239,7 @@ document.addEventListener('click', async (e) => {
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
         e.target.innerText = "Salvando...";
         try {
-            await setDoc(doc(db, "usuarios", auth.currentUser.uid), { 
-                nome: nomeEl.value, email: auth.currentUser.email, admin: false, dataCadastro: new Date() 
-            });
+            await setDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: nomeEl.value, email: auth.currentUser.email, admin: false, dataCadastro: new Date() });
             window.location.reload();
         } catch (err) { alert("Erro: " + err.message); }
     }
@@ -250,11 +255,44 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // EXCLUIR HISTÓRICO (BOTÃO VERMELHO NOVO)
+    // ABRIR JANELA DE EDIÇÃO (LÁPIS)
+    const btnEditar = e.target.closest('.btn-editar');
+    if (btnEditar) {
+        if (!isAdmin) return alert("Acesso negado.");
+        const idDoc = btnEditar.getAttribute('data-id');
+        const d = registrosAtuais[idDoc]; // Pega os dados que estão na memória da tela
+        
+        // Preenche o formulário flutuante com os dados antigos
+        document.getElementById("editIdDoc").value = idDoc;
+        document.getElementById("editTurno").value = d.turno || "";
+        document.getElementById("editTratamento").value = d.tratamento || "";
+        document.getElementById("editCaixa").value = d.caixa || "";
+        
+        // Preenche os números ou deixa vazio se não existirem
+        document.getElementById("editAmonia").value = d.amonia !== null && d.amonia !== undefined ? d.amonia : "";
+        document.getElementById("editNitrito").value = d.nitrito !== null && d.nitrito !== undefined ? d.nitrito : "";
+        document.getElementById("editAlcalinidade").value = d.alcalinidade !== null && d.alcalinidade !== undefined ? d.alcalinidade : "";
+        document.getElementById("editDureza").value = d.dureza !== null && d.dureza !== undefined ? d.dureza : "";
+        document.getElementById("editPh").value = d.ph !== null && d.ph !== undefined ? d.ph : "";
+        document.getElementById("editOd").value = d.od !== null && d.od !== undefined ? d.od : "";
+        document.getElementById("editTemperatura").value = d.temperatura !== null && d.temperatura !== undefined ? d.temperatura : "";
+        document.getElementById("editCondutividade").value = d.condutividade !== null && d.condutividade !== undefined ? d.condutividade : "";
+        document.getElementById("editSalinidade").value = d.salinidade !== null && d.salinidade !== undefined ? d.salinidade : "";
+        document.getElementById("editSolidos").value = d.solidos !== null && d.solidos !== undefined ? d.solidos : "";
+
+        // Mostra a janela
+        document.getElementById("modalEditar").style.display = "flex";
+    }
+
+    // FECHAR A JANELA DE EDIÇÃO
+    if (e.target.id === 'btnCancelarEdicao') {
+        document.getElementById("modalEditar").style.display = "none";
+    }
+
+    // EXCLUIR HISTÓRICO
     const btnExcluir = e.target.closest('.btn-excluir-novo');
     if (btnExcluir) {
         if (!isAdmin) return alert("Apenas administradores podem apagar registros."); 
-
         const idDoc = btnExcluir.getAttribute('data-id');
         if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
             try {
@@ -264,7 +302,7 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // DAR OU REMOVER PODER DE ADMIN DE OUTRO USUÁRIO
+    // ADMIN: DAR OU REMOVER PERMISSÃO
     const btnToggleAdmin = e.target.closest('.btn-toggle-admin');
     if (btnToggleAdmin) {
         if (!isAdmin) return alert("Acesso negado.");
@@ -273,21 +311,19 @@ document.addEventListener('click', async (e) => {
         const vaiSerAdmin = (acao === 'dar');
 
         const msgConfirmacao = vaiSerAdmin 
-            ? "Tem certeza que deseja promover este usuário a Administrador? Ele poderá apagar coletas e baixar a base de dados." 
+            ? "Tem certeza que deseja promover este usuário a Administrador?" 
             : "Tem certeza que deseja remover o acesso de Administrador deste usuário?";
 
         if (confirm(msgConfirmacao)) {
             try {
                 await updateDoc(doc(db, "usuarios", alvoUid), { admin: vaiSerAdmin });
                 alert("Permissões atualizadas com sucesso!");
-                carregarListaUsuarios(); // Recarrega a tela na hora
+                carregarListaUsuarios(); 
             } catch (err) { alert("Erro ao atualizar permissão: " + err.message); }
         }
     }
 
-    // ==========================================
-    // SISTEMA DE TROCA DE ABAS (AGORA SÃO 4)
-    // ==========================================
+    // NAVEGAÇÃO DE ABAS
     const abas = [
         { btn: 'tabRegistro', tela: 'secaoRegistro' },
         { btn: 'tabHistorico', tela: 'secaoHistorico' },
@@ -303,36 +339,27 @@ document.addEventListener('click', async (e) => {
             if (btnEl && telaEl) {
                 if (aba.btn === e.target.id) {
                     telaEl.style.display = "block";
-                    btnEl.style.backgroundColor = "#007bff"; // Ativa (Azul)
+                    btnEl.style.backgroundColor = "#007bff"; 
                 } else {
                     telaEl.style.display = "none";
-                    btnEl.style.backgroundColor = "#6c757d"; // Inativa (Cinza)
+                    btnEl.style.backgroundColor = "#6c757d"; 
                 }
             }
         });
 
-        // Dispara as funções de carregar dados dependendo de qual aba abriu
         if (e.target.id === 'tabHistorico') carregarHistorico();
         if (e.target.id === 'tabAdmin') carregarListaUsuarios();
     }
 
     if (e.target.id === 'btnAtualizarHistorico') carregarHistorico();
-    
-    if (e.target.id === 'btnSair') {
-        await signOut(auth);
-        window.location.reload();
-    }
+    if (e.target.id === 'btnSair') { await signOut(auth); window.location.reload(); }
 
-    // ==============================================
-    // GERAÇÃO DO RELATÓRIO EM BLOCOS
-    // ==============================================
+    // GERAÇÃO DO RELATÓRIO
     if (e.target.id === 'btnBaixarRelatorio') {
         if (!isAdmin) return alert("Acesso Negado."); 
-        
         e.target.innerText = "Gerando...";
         try {
             const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
-            
             const gruposMap = {};
             const gruposArray = [];
 
@@ -396,7 +423,7 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// SALVAR MEDIÇÃO
+// SALVAR NOVA MEDIÇÃO
 // ==========================================
 document.addEventListener('submit', async (e) => {
     if (e.target.id === 'formMedicao') {
@@ -429,6 +456,47 @@ document.addEventListener('submit', async (e) => {
             alert("Erro ao salvar: " + err.message); 
         } finally { 
             if(btn) btn.disabled = false; 
+        }
+    }
+
+    // SALVAR EDIÇÃO DE UMA MEDIÇÃO (NOVO)
+    if (e.target.id === 'formEditarMedicao') {
+        e.preventDefault();
+        if (!isAdmin) return alert("Acesso negado.");
+        
+        const idDoc = document.getElementById("editIdDoc").value;
+        const btn = document.querySelector("#formEditarMedicao button[type='submit']");
+        if(btn) btn.disabled = true;
+
+        const getEditVal = (id) => {
+            const el = document.getElementById(id);
+            return (el && el.value !== "") ? parseFloat(el.value) : null;
+        };
+
+        try {
+            // updateDoc não afeta campos que não estão listados aqui (como timestamp e coletor originais)
+            await updateDoc(doc(db, "medicoes", idDoc), {
+                turno: document.getElementById("editTurno").value,
+                tratamento: document.getElementById("editTratamento").value,
+                caixa: document.getElementById("editCaixa").value,
+                amonia: getEditVal("editAmonia"),
+                nitrito: getEditVal("editNitrito"),
+                alcalinidade: getEditVal("editAlcalinidade"),
+                dureza: getEditVal("editDureza"),
+                ph: getEditVal("editPh"),
+                od: getEditVal("editOd"),
+                temperatura: getEditVal("editTemperatura"),
+                condutividade: getEditVal("editCondutividade"),
+                salinidade: getEditVal("editSalinidade"),
+                solidos: getEditVal("editSolidos")
+            });
+            alert("Registro atualizado com sucesso!");
+            document.getElementById("modalEditar").style.display = "none";
+            carregarHistorico(); // Atualiza a tela de histórico
+        } catch (err) {
+            alert("Erro ao editar: " + err.message);
+        } finally {
+            if(btn) btn.disabled = false;
         }
     }
 });
