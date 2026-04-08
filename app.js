@@ -127,11 +127,11 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE E GERAÇÃO DE PLANILHA
+// EVENTOS DE CLIQUE E PLANILHA
 // ==========================================
 document.addEventListener('click', async (e) => {
     
-    // LOGIN
+    // LOGIN E CADASTRO
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Aguarde...";
         try {
@@ -145,7 +145,6 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // CADASTRO
     if (e.target.id === 'btnSalvarCadastro') {
         const nomeEl = document.getElementById("nomeCadastro");
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
@@ -156,7 +155,6 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao salvar: " + err.message); }
     }
 
-    // ATUALIZAR PERFIL
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
         if (!novoNome) return alert("O nome não pode ser vazio.");
@@ -168,37 +166,94 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // PLANILHA (CSV FORMATADO PARA EXCEL BRASILEIRO)
+    // ==============================================
+    // GERAÇÃO DO RELATÓRIO (COM SEQUÊNCIA RÍGIDA)
+    // ==============================================
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
         try {
             const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
             
-            // Cabeçalho atualizado usando ponto e vírgula (;)
-            let csv = "\ufeffData e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
-            
-            // Função para trocar ponto por vírgula nos números
-            const formatarNumero = (num) => (num !== null && num !== undefined) ? String(num).replace('.', ',') : "";
+            const gruposMap = {};
+            const gruposArray = [];
 
             snap.forEach(doc => {
                 const d = doc.data();
-                const dt = d.timestamp ? d.timestamp.toDate() : new Date();
-                const dataHoraFormata = `${dt.toLocaleDateString()} ${dt.toLocaleTimeString()}`;
+                if (!d.timestamp) return;
+
+                const dt = d.timestamp.toDate();
+                const dataStr = dt.toLocaleDateString();
+                const turno = d.turno || "Sem Turno";
+                const chaveGrupo = `${dataStr}_${turno}`;
+
+                if (!gruposMap[chaveGrupo]) {
+                    const novoGrupo = {
+                        dataStr: dataStr,
+                        turno: turno,
+                        ordem: dt.getTime(), 
+                        medicoes: {}
+                    };
+                    gruposMap[chaveGrupo] = novoGrupo;
+                    gruposArray.push(novoGrupo);
+                }
+
+                const chaveCaixa = `${d.tratamento}_${d.caixa}`;
                 
-                // Monta a linha com ponto e vírgula e números com vírgula decimal
-                csv += `${dataHoraFormata};${d.turno};${d.tratamento};${d.caixa};${formatarNumero(d.amonia)};${formatarNumero(d.nitrito)};${formatarNumero(d.alcalinidade)};${formatarNumero(d.dureza)};${formatarNumero(d.ph)};${formatarNumero(d.od)};${formatarNumero(d.temperatura)};${formatarNumero(d.condutividade)};${formatarNumero(d.salinidade)};${formatarNumero(d.solidos)};${d.coletor}\n`;
+                // TRAVA ANTI-DUPLICAÇÃO:
+                // Como o Firebase traz do mais novo para o mais velho (desc), 
+                // só salvamos se for a PRIMEIRA vez que vemos essa caixa (garantindo a mais recente)
+                if (!gruposMap[chaveGrupo].medicoes[chaveCaixa]) {
+                    gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObj: dt };
+                }
+            });
+
+            gruposArray.sort((a, b) => b.ordem - a.ordem);
+
+            // A ORDEM RÍGIDA É DEFINIDA AQUI (O "Molde de Gesso")
+            const sequenciaCaixas = [
+                { t: "Tratamento 1", c: "Caixa 1" }, { t: "Tratamento 1", c: "Caixa 2" }, { t: "Tratamento 1", c: "Caixa 3" },
+                { t: "Tratamento 2", c: "Caixa 1" }, { t: "Tratamento 2", c: "Caixa 2" }, { t: "Tratamento 2", c: "Caixa 3" },
+                { t: "Tratamento 3", c: "Caixa 1" }, { t: "Tratamento 3", c: "Caixa 2" }, { t: "Tratamento 3", c: "Caixa 3" }
+            ];
+
+            const cabecalho = "Data e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
+            let csv = "\ufeff"; 
+            
+            const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
+
+            gruposArray.forEach((grupo, index) => {
+                csv += cabecalho; 
+
+                // Aqui o código obriga o CSV a seguir a ordem da lista acima, 
+                // independentemente da ordem que o usuário preencheu no aplicativo
+                sequenciaCaixas.forEach(caixaAlvo => {
+                    const chave = `${caixaAlvo.t}_${caixaAlvo.c}`;
+                    const med = grupo.medicoes[chave];
+
+                    if (med) {
+                        const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString()}`;
+                        csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
+                    } else {
+                        csv += `${grupo.dataStr} --:--:--;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
+                    }
+                });
+
+                if (index < gruposArray.length - 1) {
+                    csv += "\n";
+                }
             });
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "relatorio_bagrinhos.csv";
+            link.download = "relatorio_bagrinhos_blocos.csv";
             link.click();
+
         } catch (err) { alert("Erro no relatório: " + err.message); }
         finally { e.target.innerText = "📥 Planilha"; }
     }
 
-    // CONTROLE DAS 3 ABAS
+    // ABAS E HISTÓRICO
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
         document.getElementById("secaoHistorico").style.display = "none";
@@ -227,12 +282,10 @@ document.addEventListener('click', async (e) => {
         document.getElementById("tabHistorico").style.backgroundColor = "#6c757d";
     }
 
-    // BOTÃO ATUALIZAR HISTÓRICO
     if (e.target.id === 'btnAtualizarHistorico') {
         carregarHistorico();
     }
 
-    // LOGOUT
     if (e.target.id === 'btnSair') {
         await signOut(auth);
         window.location.reload();
