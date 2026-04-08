@@ -3,133 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Parâmetros de Qualidade da Água</title>
+<title>Registro de Parâmetros</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="container">
+<div class="container app-container">
   <h1>Registro de Parâmetros</h1>
-
-  <div class="user-info">
-    <img id="fotoUsuario" src="" alt="Foto" width="50" height="50">
-    <span id="nomeUsuario"></span>
+  <div>
+    <label>Turno:</label>
+    <select id="turno">
+      <option>Manhã</option>
+      <option>Tarde</option>
+    </select>
   </div>
-
-  <input type="text" id="tanque" placeholder="Tratamento e Tanque">
-  <select id="turno">
-    <option value="Manhã">Manhã</option>
-    <option value="Tarde">Tarde</option>
-  </select>
-
+  <div>
+    <label>Tanque:</label>
+    <select id="tanque">
+      <option>Tratamento 1 - Caixa 1</option>
+      <option>Tratamento 1 - Caixa 2</option>
+      <option>Tratamento 1 - Caixa 3</option>
+      <option>Tratamento 2 - Caixa 1</option>
+      <option>Tratamento 2 - Caixa 2</option>
+      <option>Tratamento 2 - Caixa 3</option>
+      <option>Tratamento 3 - Caixa 1</option>
+      <option>Tratamento 3 - Caixa 2</option>
+      <option>Tratamento 3 - Caixa 3</option>
+    </select>
+  </div>
   <h2>Colorimétrico</h2>
-  <input type="number" id="amonia" placeholder="Amônia (mg/L)">
-  <input type="number" id="nitrito" placeholder="Nitrito (mg/L)">
-  <input type="number" id="alcalinidade" placeholder="Alcalinidade (mg/L)">
-  <input type="number" id="dureza" placeholder="Dureza (mg/L)">
-
+  <input type="number" step="0.01" id="amonia" placeholder="Amônia (mg/L)">
+  <input type="number" step="0.01" id="nitrito" placeholder="Nitrito (mg/L)">
+  <input type="number" step="0.01" id="alcalinidade" placeholder="Alcalinidade (mg/L)">
+  <input type="number" step="0.01" id="dureza" placeholder="Dureza (mg/L)">
   <h2>Multiparâmetro</h2>
-  <input type="number" id="ph" placeholder="pH">
-  <input type="number" id="od" placeholder="Oxigênio Dissolvido (mg/L)">
-  <input type="number" id="temperatura" placeholder="Temperatura (°C)">
-  <input type="number" id="condutividade" placeholder="Condutividade">
-  <input type="number" id="salinidade" placeholder="Salinidade">
-  <input type="number" id="solidos" placeholder="Sólidos Totais">
-
+  <input type="number" step="0.01" id="ph" placeholder="pH">
+  <input type="number" step="0.01" id="od" placeholder="Oxigênio Dissolvido (mg/L)">
+  <input type="number" step="0.01" id="temperatura" placeholder="Temperatura (°C)">
+  <input type="text" id="condutividade" placeholder="Condutividade">
+  <input type="text" id="salinidade" placeholder="Salinidade">
+  <input type="text" id="solidos_totais" placeholder="Sólidos Totais">
   <textarea id="observacoes" placeholder="Observações"></textarea>
-  <button id="btnSalvar">Salvar Registro</button>
-
-  <h2>Registros</h2>
+  <button id="salvarBtn">Salvar Registro</button>
   <ul id="lista"></ul>
 </div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_AUTH_DOMAIN",
-  projectId: "SEU_PROJECT_ID",
-  storageBucket: "SEU_STORAGE_BUCKET",
-  messagingSenderId: "SEU_MSG_ID",
-  appId: "SEU_APP_ID",
-  measurementId: "SEU_MEAS_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-let nomeAtual = "";
-let fotoAtual = "";
-
-// Carrega info do usuário
-window.onload = async () => {
-  const user = auth.currentUser;
-  if (!user) {
-    alert("Usuário não logado!");
-    window.location.href = "login.html";
-    return;
-  }
-  const userRef = doc(db, "usuarios", user.uid);
-  const docSnap = await getDoc(userRef);
-  if (!docSnap.exists()) {
-    window.location.href = "cadastro.html";
-    return;
-  }
-  const data = docSnap.data();
-  nomeAtual = data.nome;
-  fotoAtual = data.foto || "";
-  document.getElementById("nomeUsuario").textContent = nomeAtual;
-  if (fotoAtual) document.getElementById("fotoUsuario").src = fotoAtual;
-};
-
-// Salvar registro
-document.getElementById("btnSalvar").addEventListener("click", async () => {
-  await addDoc(collection(db, "registros"), {
-    usuario: nomeAtual,
-    dataHora: new Date(),
-    turno: document.getElementById("turno").value,
-    tanque: document.getElementById("tanque").value,
-    amonia: document.getElementById("amonia").value,
-    nitrito: document.getElementById("nitrito").value,
-    alcalinidade: document.getElementById("alcalinidade").value,
-    dureza: document.getElementById("dureza").value,
-    ph: document.getElementById("ph").value,
-    od: document.getElementById("od").value,
-    temperatura: document.getElementById("temperatura").value,
-    condutividade: document.getElementById("condutividade").value,
-    salinidade: document.getElementById("salinidade").value,
-    solidos: document.getElementById("solidos").value,
-    observacoes: document.getElementById("observacoes").value
-  });
-  alert("Registro salvo!");
-  carregarRegistros();
-});
-
-// Carregar registros
-async function carregarRegistros() {
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
-  const querySnapshot = await getDocs(collection(db, "registros"));
-  querySnapshot.forEach(doc => {
-    const dados = doc.data();
-    const item = document.createElement("li");
-    item.innerHTML = `
-      <strong>${dados.usuario}</strong><br>
-      Tanque: ${dados.tanque} | Turno: ${dados.turno}<br>
-      pH: ${dados.ph} | OD: ${dados.od} | Temp: ${dados.temperatura}°C<br>
-      Data: ${new Date(dados.dataHora).toLocaleString()}<br>
-      Observações: ${dados.observacoes || "-"}
-      <hr>
-    `;
-    lista.appendChild(item);
-  });
-}
-
-// Inicializa registros ao carregar
-window.onload = () => carregarRegistros();
-</script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
