@@ -1,83 +1,33 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coleta de Dados - Água</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    .form-section { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff; }
-    .form-section h3 { margin-top: 0; color: #333; }
-    .btn-relatorio { background-color: #28a745; margin-bottom: 20px;}
-    .btn-relatorio:hover { background-color: #218838; }
-    .btn-sair { background-color: #dc3545; }
-    .btn-sair:hover { background-color: #c82333; }
-    .header-app { display: flex; justify-content: space-between; align-items: center; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header-app">
-      <h2>Coleta de Parâmetros</h2>
-      <button id="btnBaixarRelatorio" class="btn-relatorio" style="width: auto; padding: 10px 15px;">📥 Baixar Relatório</button>
-    </div>
-
-    <form id="formMedicao">
-      <div class="form-section">
-        <h3>Informações do Registro</h3>
-        <label for="turno">Turno da Medição:*</label>
-        <select id="turno" required>
-          <option value="" disabled selected>Selecione...</option>
+<div class="form-section">
+        <h3>Local da Medição</h3>
+        <span class="badge-info">Selecione o turno, o tratamento e a caixa correspondente.</span>
+        
+        <label for="turno">Turno:*</label>
+        <select id="turno" class="select-field" required>
+          <option value="" disabled selected>Escolha o turno...</option>
           <option value="Manhã">Manhã</option>
           <option value="Tarde">Tarde</option>
+          <option value="Noite">Noite</option>
         </select>
-        
-        <label for="tanque">Identificação do Tanque/Caixa:*</label>
-        <input type="text" id="tanque" placeholder="Ex: Tratamento 1 - Caixa 2" required>
+
+        <div class="grid-selects">
+          <div>
+            <label for="tratamento">Tratamento:*</label>
+            <select id="tratamento" class="select-field" required>
+              <option value="" disabled selected>Selecionar...</option>
+              <option value="Tratamento 1">Tratamento 1</option>
+              <option value="Tratamento 2">Tratamento 2</option>
+              <option value="Tratamento 3">Tratamento 3</option>
+            </select>
+          </div>
+          <div>
+            <label for="caixa">Caixa/Repetição:*</label>
+            <select id="caixa" class="select-field" required>
+              <option value="" disabled selected>Selecionar...</option>
+              <option value="Caixa 1">Caixa 1</option>
+              <option value="Caixa 2">Caixa 2</option>
+              <option value="Caixa 3">Caixa 3</option>
+            </select>
+          </div>
+        </div>
       </div>
-
-      <div class="form-section">
-        <h3>Kit Colorimétrico</h3>
-        <label for="amonia">Amônia (mg/L)*</label>
-        <input type="number" id="amonia" step="0.01" placeholder="0.00" required>
-
-        <label for="nitrito">Nitrito (mg/L)*</label>
-        <input type="number" id="nitrito" step="0.01" placeholder="0.00" required>
-
-        <label for="alcalinidade">Alcalinidade (mg/L CaCO₃)*</label>
-        <input type="number" id="alcalinidade" step="0.01" placeholder="0.00" required>
-
-        <label for="dureza">Dureza (mg/L CaCO₃)*</label>
-        <input type="number" id="dureza" step="0.01" placeholder="0.00" required>
-      </div>
-
-      <div class="form-section">
-        <h3>Kit Multiparâmetro</h3>
-        <label for="ph">pH*</label>
-        <input type="number" id="ph" step="0.01" placeholder="0.00" required>
-
-        <label for="od">Oxigênio Dissolvido - OD (mg/L)*</label>
-        <input type="number" id="od" step="0.01" placeholder="0.00" required>
-
-        <label for="temperatura">Temperatura (°C)*</label>
-        <input type="number" id="temperatura" step="0.1" placeholder="0.0" required>
-
-        <label for="condutividade">Condutividade (Opcional)</label>
-        <input type="number" id="condutividade" step="0.01" placeholder="Deixe em branco se não medido">
-
-        <label for="salinidade">Salinidade (Opcional)</label>
-        <input type="number" id="salinidade" step="0.01" placeholder="Deixe em branco se não medido">
-
-        <label for="solidos">Sólidos Totais (Opcional)</label>
-        <input type="number" id="solidos" step="0.01" placeholder="Deixe em branco se não medido">
-      </div>
-
-      <button type="submit" id="btnSalvarMedicao">💾 Salvar Medição</button>
-    </form>
-
-    <button id="btnSair" class="btn-sair">Sair do Sistema</button>
-  </div>
-  
-  <script type="module" src="app.js"></script>
-</body>
-</html>
