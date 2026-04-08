@@ -16,9 +16,6 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// ==========================================
-// FUNÇÕES DE UTILIDADE E INTERFACE
-// ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
     const alvo = document.getElementById(id);
@@ -35,26 +32,20 @@ const getVal = (id) => {
     return (el && el.value !== "") ? parseFloat(el.value) : null;
 };
 
-// ==========================================
-// MONITOR DE AUTENTICAÇÃO (Evita o Loop)
-// ==========================================
-// Timeout de segurança caso o Firebase demore
 let timeoutFirebase = setTimeout(() => {
     mostrarTela("telaLogin");
 }, 5000);
 
-// Força o Firebase a registrar o retorno do Google no celular
 getRedirectResult(auth).catch(e => console.warn("Aviso Redirect:", e));
 
 onAuthStateChanged(auth, async (user) => {
-    clearTimeout(timeoutFirebase); // O Firebase respondeu, cancela o timeout
+    clearTimeout(timeoutFirebase);
 
     if (user) {
         try {
             const docSnap = await getDoc(doc(db, "usuarios", user.uid));
             if (docSnap.exists()) {
                 const d = docSnap.data();
-                // Preenche os dados na tela
                 escrever("userNameHeader", d.nome);
                 escrever("userEmailHeader", user.email);
                 escrever("userEmailText", user.email);
@@ -62,7 +53,6 @@ onAuthStateChanged(auth, async (user) => {
                 
                 if (document.getElementById("editNome")) document.getElementById("editNome").value = d.nome;
                 
-                // Bolinhas com as iniciais
                 const inicial = d.nome ? d.nome.charAt(0).toUpperCase() : "?";
                 escrever("userIniciaisSmall", inicial);
                 escrever("userIniciaisLarge", inicial);
@@ -80,12 +70,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// ==========================================
-// EVENTOS DE CLIQUE (Delegação Segura)
-// ==========================================
 document.addEventListener('click', async (e) => {
-    
-    // LOGIN
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Conectando...";
         try {
@@ -101,7 +86,6 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // CADASTRO
     if (e.target.id === 'btnSalvarCadastro') {
         const nomeEl = document.getElementById("nomeCadastro");
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
@@ -114,7 +98,6 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao salvar: " + err.message); }
     }
 
-    // ATUALIZAR NOME (PERFIL)
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
         if (!novoNome) return alert("O nome não pode ser vazio.");
@@ -126,7 +109,6 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // BAIXAR RELATÓRIO CSV
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
         try {
@@ -140,13 +122,12 @@ document.addEventListener('click', async (e) => {
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "relatorio_qualidade_agua.csv";
+            link.download = "relatorio_bagrinhos.csv";
             link.click();
         } catch (err) { alert("Erro no relatório: " + err.message); }
         finally { e.target.innerText = "Relatório"; }
     }
 
-    // TROCA DE ABAS
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
         document.getElementById("secaoPerfil").style.display = "none";
@@ -160,7 +141,6 @@ document.addEventListener('click', async (e) => {
         document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
     }
 
-    // LOGOUT
     if (e.target.id === 'btnSair') {
         await signOut(auth);
         window.location.reload();
@@ -168,7 +148,7 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// SALVAR MEDIÇÃO (FORMULÁRIO)
+// SALVAR MEDIÇÃO
 // ==========================================
 document.addEventListener('submit', async (e) => {
     if (e.target.id === 'formMedicao') {
@@ -193,11 +173,11 @@ document.addEventListener('submit', async (e) => {
                 condutividade: getVal("condutividade"),
                 salinidade: getVal("salinidade"),
                 solidos: getVal("solidos"),
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp() // A hora/data já vai aqui automática
             });
             alert("Medição salva com sucesso!");
             
-            // Mantém os selects mas limpa os campos de números para facilitar a próxima coleta
+            // Mantém os selects preenchidos, mas limpa só os campos de números
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
             
         } catch (err) { 
