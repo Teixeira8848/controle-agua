@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRLrik-rHVfDNz_gn2P4oYgraM64iHI0k",
@@ -27,7 +27,6 @@ onAuthStateChanged(auth, async (user) => {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         dadosUsuarioLocal = docSnap.data();
-        // Só tenta atualizar a UI se os elementos existirem (evita erro 400)
         if (document.getElementById("userNameHeader")) {
           atualizarUIPerfil(user, dadosUsuarioLocal);
         }
@@ -45,16 +44,22 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- 2. TELA DE LOGIN (index.html) ---
+// --- 2. TELA DE LOGIN (index.html) - VERSÃO HÍBRIDA (POPUP + REDIRECT) ---
 const btnLogin = document.getElementById("loginGoogleBtn");
 if (btnLogin) {
   btnLogin.onclick = async () => {
     try {
       btnLogin.innerText = "Conectando...";
-      await signInWithPopup(auth, provider);
+      
+      // Se for celular (tela pequena), usa Redirect. Se for PC, usa Popup.
+      if (window.innerWidth < 768) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
     } catch (error) {
       console.error(error);
-      alert("Erro ao logar com Google. Verifique sua conexão.");
+      alert("Erro ao logar. Certifique-se de estar usando o Chrome ou Safari fora de outros apps.");
       btnLogin.innerText = "Entrar com Google";
     }
   };
@@ -87,6 +92,9 @@ function atualizarUIPerfil(user, dados) {
     if (document.getElementById("userEmailText")) document.getElementById("userEmailText").innerText = user.email;
     if (document.getElementById("userIdText")) document.getElementById("userIdText").innerText = user.uid;
     if (document.getElementById("editNome")) document.getElementById("editNome").value = dados.nome;
+    if (document.getElementById("userIniciais")) {
+        document.getElementById("userIniciais").innerText = dados.nome.charAt(0).toUpperCase();
+    }
 }
 
 // Troca de Abas
@@ -144,15 +152,15 @@ if (formMedicao) {
     };
     try {
       await addDoc(collection(db, "medicoes"), dados);
-      alert("Medição salva!");
+      alert("Medição salva com sucesso!");
       document.getElementById("tratamento").value = "";
       document.getElementById("caixa").value = "";
-    } catch (err) { alert("Erro ao salvar."); }
+    } catch (err) { alert("Erro ao salvar medição."); }
     finally { btn.disabled = false; }
   };
 }
 
-// Relatório
+// Relatório CSV
 document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async () => {
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"));
@@ -166,7 +174,7 @@ document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async (
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = "relatorio.csv";
+        link.download = `relatorio_agua_${new Date().toLocaleDateString()}.csv`;
         link.click();
     } catch (e) { alert("Erro no relatório."); }
 });
