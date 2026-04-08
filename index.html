@@ -9,10 +9,15 @@
     .tela { display: none; }
     .ativa { display: block !important; }
     .bolinha-perfil { background-color: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 50%; }
-    /* Estilo para os cartões do histórico */
     .card-historico { background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-size: 0.9rem; }
     .card-header { display: flex; justify-content: space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 8px; font-weight: bold; }
-    .card-resumo { display: flex; gap: 5px; margin-top: 8px; background: #fff; padding: 5px; border-radius: 4px; border: 1px solid #eee; }
+    
+    /* Novo botão Excluir vermelho em vez da lixeira */
+    .btn-excluir-novo { background-color: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+    .btn-excluir-novo:hover { background-color: #c82333; }
+    
+    /* Estilo para a lista de usuários no painel admin */
+    .card-usuario { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -45,16 +50,17 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 5px; margin-bottom: 20px;">
-        <button id="tabRegistro" style="flex: 1; margin: 0; padding: 10px; border: none; background-color: #007bff; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">📝 Coleta</button>
-        <button id="tabHistorico" style="flex: 1; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">📜 Histórico</button>
-        <button id="tabPerfil" style="flex: 1; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">👤 Perfil</button>
+      <div style="display: flex; gap: 5px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;">
+        <button id="tabRegistro" style="flex: 1; min-width: 80px; margin: 0; padding: 10px; border: none; background-color: #007bff; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">📝 Coleta</button>
+        <button id="tabHistorico" style="flex: 1; min-width: 90px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">📜 Histórico</button>
+        <button id="tabPerfil" style="flex: 1; min-width: 80px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">👤 Perfil</button>
+        <button id="tabAdmin" style="flex: 1; min-width: 90px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; display: none;">⚙️ Admin</button>
       </div>
 
       <div id="secaoRegistro">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h2 style="margin: 0;">Nova Medição</h2>
-          <button id="btnBaixarRelatorio" style="width: auto; background-color: #28a745; color: white; padding: 5px 10px; margin: 0; border: none; border-radius: 5px; cursor: pointer;">📥 Planilha</button>
+          <button id="btnBaixarRelatorio" style="width: auto; background-color: #28a745; color: white; padding: 5px 10px; margin: 0; border: none; border-radius: 5px; cursor: pointer; display: none;">📥 Planilha</button>
         </div>
 
         <form id="formMedicao">
@@ -108,10 +114,7 @@
           <h2 style="margin: 0;">Últimas Coletas</h2>
           <button id="btnAtualizarHistorico" style="width: auto; background-color: #17a2b8; color: white; padding: 5px 10px; margin: 0; border: none; border-radius: 5px; cursor: pointer;">🔄 Atualizar</button>
         </div>
-        
-        <div id="listaHistorico">
-            <p style="text-align: center; color: #666;">Clique em Atualizar para carregar.</p>
-        </div>
+        <div id="listaHistorico"></div>
       </div>
 
       <div id="secaoPerfil" style="display: none;">
@@ -120,6 +123,7 @@
           <div id="userIniciaisLarge" class="bolinha-perfil" style="width: 80px; height: 80px; font-size: 2rem; margin-bottom: 10px; border: 3px solid #007bff;">?</div>
           <p style="margin: 5px 0;"><strong>ID:</strong> <span id="userIdText" style="color: #666; font-size: 0.75rem;">---</span></p>
           <p style="margin: 5px 0;"><strong>Email:</strong> <span id="userEmailText" style="color: #666; font-size: 0.9rem;">---</span></p>
+          <p style="margin: 5px 0; color: #28a745; font-weight: bold; display: none;" id="badgeAdmin">🛡️ Administrador</p>
         </div>
 
         <label style="display: block;">Editar Nome:</label>
@@ -127,6 +131,14 @@
 
         <button id="btnAtualizarPerfil" style="width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Salvar Alterações</button>
         <button id="btnSair" style="width: 100%; padding: 12px; background-color: #dc3545; color: white; margin-top: 30px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Sair do Sistema</button>
+      </div>
+
+      <div id="secaoAdmin" style="display: none;">
+        <h2 style="margin-bottom: 15px;">Gerenciar Equipe</h2>
+        <p style="font-size: 0.85rem; color: #666;">Aqui você pode conceder ou remover acesso de Administrador dos membros da equipe.</p>
+        <div id="listaUsuariosAdmin" style="margin-top: 15px; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+            <p style="text-align: center; color: #666;">Carregando usuários...</p>
+        </div>
       </div>
 
     </div>
