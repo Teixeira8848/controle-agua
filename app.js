@@ -16,6 +16,9 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// Variável global para checar se é admin
+let isAdmin = false; 
+
 // ==========================================
 // FUNÇÕES DE UTILIDADE E INTERFACE
 // ==========================================
@@ -59,13 +62,16 @@ async function carregarHistorico() {
             const idDoc = doc.id;
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
+            // Só gera o código do botão da lixeira se o usuário for admin
+            const botaoLixeiraHtml = isAdmin ? `<button class="btn-excluir" data-id="${idDoc}" style="background: none; border: none; color: #dc3545; font-size: 1.2rem; cursor: pointer; padding: 0;" title="Apagar Registro">🗑️</button>` : '';
+
             html += `
             <div class="card-historico" id="card-${idDoc}">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${d.tratamento} - ${d.caixa}</span>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="color: #007bff;">${dataHora}</span>
-                        <button class="btn-excluir" data-id="${idDoc}" style="background: none; border: none; color: #dc3545; font-size: 1.2rem; cursor: pointer; padding: 0;" title="Apagar Registro">🗑️</button>
+                        ${botaoLixeiraHtml}
                     </div>
                 </div>
                 <p style="margin: 3px 0;"><strong>Turno:</strong> ${d.turno}</p>
@@ -107,6 +113,9 @@ onAuthStateChanged(auth, async (user) => {
             if (docSnap.exists()) {
                 const d = docSnap.data();
                 
+                // Define se a pessoa logada é admin
+                isAdmin = d.admin === true;
+
                 escrever("userNameHeader", d.nome);
                 escrever("userEmailHeader", user.email);
                 escrever("userEmailText", user.email);
@@ -117,6 +126,12 @@ onAuthStateChanged(auth, async (user) => {
                 const inicial = d.nome ? d.nome.charAt(0).toUpperCase() : "?";
                 escrever("userIniciaisSmall", inicial);
                 escrever("userIniciaisLarge", inicial);
+
+                // Mostra as ferramentas secretas se for admin
+                if (isAdmin) {
+                    document.getElementById("btnBaixarRelatorio").style.display = "block";
+                    document.getElementById("badgeAdmin").style.display = "block"; // Uma tag na aba perfil pra você saber que deu certo
+                }
 
                 mostrarTela("telaApp");
             } else {
@@ -154,7 +169,13 @@ document.addEventListener('click', async (e) => {
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
         e.target.innerText = "Salvando...";
         try {
-            await setDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: nomeEl.value, email: auth.currentUser.email, dataCadastro: new Date() });
+            // Novos usuários entram como admin=false por padrão
+            await setDoc(doc(db, "usuarios", auth.currentUser.uid), { 
+                nome: nomeEl.value, 
+                email: auth.currentUser.email, 
+                admin: false,
+                dataCadastro: new Date() 
+            });
             window.location.reload();
         } catch (err) { alert("Erro ao salvar: " + err.message); }
     }
@@ -170,9 +191,11 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // LÓGICA DE EXCLUSÃO DO HISTÓRICO
+    // LÓGICA DE EXCLUSÃO (Protegida)
     const btnExcluir = e.target.closest('.btn-excluir');
     if (btnExcluir) {
+        if (!isAdmin) return alert("Apenas administradores podem apagar registros."); // Dupla verificação
+
         const idDoc = btnExcluir.getAttribute('data-id');
         if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
             try {
@@ -185,10 +208,10 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // ==============================================
-    // GERAÇÃO DO RELATÓRIO (RESTAUROU A DATA SÓ NAS PREENCHIDAS)
-    // ==============================================
+    // GERAÇÃO DO RELATÓRIO (Protegida)
     if (e.target.id === 'btnBaixarRelatorio') {
+        if (!isAdmin) return alert("Acesso Negado."); // Dupla verificação
+        
         e.target.innerText = "Gerando...";
         try {
             const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
@@ -247,7 +270,6 @@ document.addEventListener('click', async (e) => {
                         const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}`;
                         csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
                     } else {
-                        // Linha vazia: mostra o turno e a caixa, mas a data fica em branco como era antes
                         csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
