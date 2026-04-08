@@ -56,10 +56,9 @@ async function carregarHistorico() {
         let html = "";
         snap.forEach(doc => {
             const d = doc.data();
-            const idDoc = doc.id; // Pega o ID único do documento no Firebase
+            const idDoc = doc.id;
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Adicionado o botão de lixeira no cabeçalho do cartão com o atributo data-id
             html += `
             <div class="card-historico" id="card-${idDoc}">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
@@ -171,18 +170,13 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // ==============================================
-    // LÓGICA DE EXCLUSÃO (NOVIDADE)
-    // ==============================================
+    // LÓGICA DE EXCLUSÃO DO HISTÓRICO
     const btnExcluir = e.target.closest('.btn-excluir');
     if (btnExcluir) {
         const idDoc = btnExcluir.getAttribute('data-id');
-        
-        // Pede confirmação para evitar exclusão por acidente
         if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
             try {
                 await deleteDoc(doc(db, "medicoes", idDoc));
-                // Remove o cartão da tela visualmente ou recarrega a lista
                 carregarHistorico(); 
                 alert("Registro apagado com sucesso!");
             } catch (err) {
@@ -192,7 +186,7 @@ document.addEventListener('click', async (e) => {
     }
 
     // ==============================================
-    // GERAÇÃO DO RELATÓRIO
+    // GERAÇÃO DO RELATÓRIO (RESTAUROU A DATA SÓ NAS PREENCHIDAS)
     // ==============================================
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
@@ -253,6 +247,7 @@ document.addEventListener('click', async (e) => {
                         const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}`;
                         csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
                     } else {
+                        // Linha vazia: mostra o turno e a caixa, mas a data fica em branco como era antes
                         csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
