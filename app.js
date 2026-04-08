@@ -18,193 +18,125 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const paginaAtual = window.location.pathname;
 
-// Variável global para guardar o nome do usuário ativo (para os relatórios)
-let nomeUsuarioAtivo = "Usuário Desconhecido";
+let nomeUsuarioAtivo = "Usuário";
 
-// -------------------------------------------------------------------
-// 1. GERENCIADOR DE ROTAS
-// -------------------------------------------------------------------
+// --- GERENCIADOR DE ROTAS ---
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     const docRef = doc(db, "usuarios", user.uid);
     const docSnap = await getDoc(docRef);
-
     if (docSnap.exists()) {
-      nomeUsuarioAtivo = docSnap.data().nome; // Guarda o nome para usar nas medições
-      if (paginaAtual.endsWith("index.html") || paginaAtual.endsWith("cadastro.html") || paginaAtual === "/") {
-        window.location.href = "app.html";
-      }
+      nomeUsuarioAtivo = docSnap.data().nome;
+      if (paginaAtual.endsWith("index.html") || paginaAtual.endsWith("cadastro.html") || paginaAtual === "/") window.location.href = "app.html";
     } else {
-      if (!paginaAtual.endsWith("cadastro.html")) {
-        window.location.href = "cadastro.html";
-      }
+      if (!paginaAtual.endsWith("cadastro.html")) window.location.href = "cadastro.html";
     }
   } else {
-    if (!paginaAtual.endsWith("index.html") && paginaAtual !== "/") {
-      window.location.href = "index.html";
-    }
+    if (!paginaAtual.endsWith("index.html") && paginaAtual !== "/") window.location.href = "index.html";
   }
 });
 
-// -------------------------------------------------------------------
-// 2 & 3. TELAS DE LOGIN E CADASTRO (Mantidas inalteradas)
-// -------------------------------------------------------------------
+// --- LOGIN E CADASTRO ---
 const btnLogin = document.getElementById("loginGoogleBtn");
 if (btnLogin) {
   btnLogin.addEventListener("click", async () => {
-    try {
-      btnLogin.innerText = "Abrindo Google...";
-      await signInWithPopup(auth, provider);
-    } catch (error) { alert("Erro ao tentar logar."); btnLogin.innerText = "Entrar com Google"; }
+    try { await signInWithPopup(auth, provider); } catch (e) { alert("Erro ao logar."); }
   });
 }
 
 const btnSalvar = document.getElementById("btnSalvar");
 if (btnSalvar) {
-  btnSalvar.addEventListener("click", async (event) => {
-    event.preventDefault();
+  btnSalvar.addEventListener("click", async (e) => {
+    e.preventDefault();
     const user = auth.currentUser;
-    if (!user) return; 
     const nome = document.getElementById("nome").value;
-    const fotoInput = document.getElementById("foto");
-    if (!nome) { alert("Digite o seu nome."); return; }
+    if (!nome) return alert("Digite seu nome.");
     try {
-      btnSalvar.innerText = "Salvando..."; btnSalvar.disabled = true;
-      await setDoc(doc(db, "usuarios", user.uid), {
-        nome: nome, email: user.email,
-        foto: fotoInput.files[0] ? fotoInput.files[0].name : null,
-        dataCadastro: new Date()
-      });
-      window.location.href = "app.html"; 
-    } catch (err) { alert("Erro de conexão."); btnSalvar.innerText = "Salvar"; btnSalvar.disabled = false; }
+      await setDoc(doc(db, "usuarios", user.uid), { nome: nome, email: user.email, dataCadastro: new Date() });
+      window.location.href = "app.html";
+    } catch (err) { alert("Erro ao salvar."); }
   });
 }
 
-// -------------------------------------------------------------------
-// 4. TELA DO APLICATIVO (Coleta de Dados)
-// -------------------------------------------------------------------
+// --- COLETA DE DADOS ---
 const formMedicao = document.getElementById("formMedicao");
 if (formMedicao) {
-  
-  // Função utilitária: converte campo vazio para null, ou texto para número
-  const getValor = (id) => {
-    const val = document.getElementById(id).value;
-    return val === "" ? null : parseFloat(val);
+  const getVal = (id) => {
+    const v = document.getElementById(id).value;
+    return v === "" ? null : parseFloat(v);
   };
 
-  formMedicao.addEventListener("submit", async (event) => {
-    event.preventDefault(); // Impede recarregamento da página
-
+  formMedicao.addEventListener("submit", async (e) => {
+    e.preventDefault();
     const user = auth.currentUser;
-    if (!user) return;
+    const btn = document.getElementById("btnSalvarMedicao");
+    
+    btn.innerText = "Gravando...";
+    btn.disabled = true;
 
-    const btnSalvarMedicao = document.getElementById("btnSalvarMedicao");
-    btnSalvarMedicao.innerText = "Gravando no banco...";
-    btnSalvarMedicao.disabled = true;
-
-    // Monta o pacote de dados do experimento
-    const dadosMedicao = {
-      // Metadados invisíveis
-      uid: user.uid,
+    const payload = {
       coletor: nomeUsuarioAtivo,
-      timestamp: serverTimestamp(), // Hora exata do Google
-      
-      // Identificação
+      timestamp: serverTimestamp(),
       turno: document.getElementById("turno").value,
-      tanque: document.getElementById("tanque").value,
-      
-      // Kit Colorimétrico
-      amonia: getValor("amonia"),
-      nitrito: getValor("nitrito"),
-      alcalinidade: getValor("alcalinidade"),
-      dureza: getValor("dureza"),
-      
-      // Kit Multiparâmetro
-      ph: getValor("ph"),
-      od: getValor("od"),
-      temperatura: getValor("temperatura"),
-      condutividade: getValor("condutividade"),
-      salinidade: getValor("salinidade"),
-      solidos: getValor("solidos")
+      tratamento: document.getElementById("tratamento").value,
+      caixa: document.getElementById("caixa").value,
+      amonia: getVal("amonia"),
+      nitrito: getVal("nitrito"),
+      alcalinidade: getVal("alcalinidade"),
+      dureza: getVal("dureza"),
+      ph: getVal("ph"),
+      od: getVal("od"),
+      temperatura: getVal("temperatura"),
+      condutividade: getVal("condutividade"),
+      salinidade: getVal("salinidade"),
+      solidos: getVal("solidos")
     };
 
     try {
-      // Salva na coleção "medicoes"
-      await addDoc(collection(db, "medicoes"), dadosMedicao);
-      alert("Medição registrada com sucesso!");
-      formMedicao.reset(); // Limpa o formulário para a próxima caixa
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao salvar medição. Tente novamente.");
-    } finally {
-      btnSalvarMedicao.innerText = "💾 Salvar Medição";
-      btnSalvarMedicao.disabled = false;
-    }
+      await addDoc(collection(db, "medicoes"), payload);
+      alert(`${payload.tratamento} - ${payload.caixa} salvo!`);
+      // Não reseta o turno para facilitar a próxima caixa
+      document.getElementById("tratamento").value = "";
+      document.getElementById("caixa").value = "";
+    } catch (err) { alert("Erro ao salvar medição."); }
+    finally { btn.innerText = "💾 Salvar Esta Caixa"; btn.disabled = false; }
   });
 }
 
-// -------------------------------------------------------------------
-// 5. GERAÇÃO DE RELATÓRIO E LOGOUT
-// -------------------------------------------------------------------
-const btnBaixarRelatorio = document.getElementById("btnBaixarRelatorio");
-if (btnBaixarRelatorio) {
-  btnBaixarRelatorio.addEventListener("click", async () => {
-    btnBaixarRelatorio.innerText = "Gerando...";
+// --- RELATÓRIO CSV BLOCADO ---
+const btnRelatorio = document.getElementById("btnBaixarRelatorio");
+if (btnRelatorio) {
+  btnRelatorio.addEventListener("click", async () => {
+    btnRelatorio.innerText = "...";
     try {
-      // Puxa todos os dados ordenados por data
-      const q = query(collection(db, "medicoes"), orderBy("timestamp", "asc"));
-      const querySnapshot = await getDocs(q);
+      // Ordenação múltipla para garantir o "bloco" por tempo e Tanque
+      const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"));
+      const snap = await getDocs(q);
       
-      // Cabeçalho da planilha Excel (CSV)
-      let csvContent = "Data,Hora,Coletor,Turno,Tanque,Amonia(mg/L),Nitrito(mg/L),Alcalinidade,Dureza,pH,OD,Temperatura,Condutividade,Salinidade,Solidos\n";
+      let csv = "Data,Hora,Turno,Coletor,Tratamento,Caixa,Amonia,Nitrito,Alcalinidade,Dureza,pH,OD,Temp,Cond,Salin,Solidos\n";
 
-      querySnapshot.forEach((doc) => {
+      snap.forEach(doc => {
         const d = doc.data();
-        
-        // Formata a data do Firebase para o padrão brasileiro
-        let dataStr = "N/A";
-        let horaStr = "N/A";
-        if (d.timestamp) {
-          const dateObj = d.timestamp.toDate();
-          dataStr = dateObj.toLocaleDateString("pt-BR");
-          horaStr = dateObj.toLocaleTimeString("pt-BR");
-        }
-
-        // Troca os "null" por vazio para ficar bonito no Excel
+        const dt = d.timestamp ? d.timestamp.toDate() : new Date();
         const row = [
-          dataStr, horaStr, d.coletor, d.turno, d.tanque,
-          d.amonia ?? "", d.nitrito ?? "", d.alcalinidade ?? "", d.dureza ?? "",
-          d.ph ?? "", d.od ?? "", d.temperatura ?? "", d.condutividade ?? "", d.salinidade ?? "", d.solidos ?? ""
+          dt.toLocaleDateString("pt-BR"),
+          dt.toLocaleTimeString("pt-BR"),
+          d.turno, d.coletor, d.tratamento, d.caixa,
+          d.amonia??"", d.nitrito??"", d.alcalinidade??"", d.dureza??"",
+          d.ph??"", d.od??"", d.temperatura??"", d.condutividade??"", d.salinidade??"", d.solidos??""
         ];
-        
-        csvContent += row.join(",") + "\n";
+        csv += row.join(",") + "\n";
       });
 
-      // Cria e baixa o arquivo mágico
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "relatorio_qualidade_agua.csv");
-      document.body.appendChild(link);
+      link.href = url;
+      link.download = `Experimento_Agua_${new Date().toLocaleDateString()}.csv`;
       link.click();
-      document.body.removeChild(link);
-
-    } catch (err) {
-      console.error("Erro ao gerar relatório:", err);
-      alert("Erro ao gerar o relatório.");
-    } finally {
-      btnBaixarRelatorio.innerText = "📥 Baixar Relatório";
-    }
+    } catch (e) { alert("Erro ao gerar relatório."); }
+    finally { btnRelatorio.innerText = "Relatório"; }
   });
 }
 
-// Botão Sair
-const btnSair = document.getElementById("btnSair");
-if (btnSair) {
-  btnSair.addEventListener("click", () => {
-    signOut(auth).then(() => {
-      window.location.href = "index.html";
-    });
-  });
-}
+document.getElementById("btnSair")?.addEventListener("click", () => signOut(auth).then(() => window.location.href = "index.html"));
