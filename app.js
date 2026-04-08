@@ -19,16 +19,29 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 let dadosUsuarioLocal = null;
+let processandoLogin = false; // Trava para o Safari
 
-// --- RASTREADOR DE INICIALIZAÇÃO (Veja no console F12 se isso aparece) ---
-console.log("Script app.js carregado com sucesso.");
+// --- AJUSTE PARA SAFARI: Captura o resultado IMEDIATAMENTE ---
+if (window.location.pathname.endsWith("index.html") || window.location.pathname === "/") {
+    processandoLogin = true; // Avisa ao sistema para não redirecionar ainda
+    getRedirectResult(auth)
+        .then((result) => {
+            processandoLogin = false;
+            if (result?.user) {
+                console.log("Safari: Login recuperado com sucesso!");
+            }
+        })
+        .catch((error) => {
+            processandoLogin = false;
+            console.error("Erro no Safari Redirect:", error);
+        });
+}
 
-// 2. GERENCIADOR DE LOGIN E ROTAS
+// 2. GERENCIADOR DE ROTAS
 onAuthStateChanged(auth, async (user) => {
   const path = window.location.pathname;
   
   if (user) {
-    console.log("Usuário detectado:", user.email);
     const docRef = doc(db, "usuarios", user.uid);
     try {
       const docSnap = await getDoc(docRef);
@@ -37,41 +50,39 @@ onAuthStateChanged(auth, async (user) => {
         if (document.getElementById("userNameHeader")) {
           atualizarUIPerfil(user, dadosUsuarioLocal);
         }
-        if (path.endsWith("index.html") || path === "/" || path.includes("vercel.app") && !path.includes("app.html") && !path.includes("cadastro.html")) {
+        if (path.endsWith("index.html") || path === "/") {
           window.location.href = "app.html";
         }
       } else if (!path.endsWith("cadastro.html")) {
         window.location.href = "cadastro.html";
       }
-    } catch (e) { console.error("Erro no Firestore:", e); }
+    } catch (e) { console.error("Erro Firestore:", e); }
   } else {
-    // Se não estiver logado e tentar acessar o app, manda pro login após 3s
-    if (!path.endsWith("index.html") && path !== "/") {
+    // Só redireciona se NÃO estiver processando um login do Safari
+    if (!path.endsWith("index.html") && path !== "/" && !processandoLogin) {
        setTimeout(() => {
            if (!auth.currentUser) window.location.href = "index.html";
-       }, 3000);
+       }, 4000); // Aumentado para 4s para o Safari
     }
   }
 });
 
-// 3. BOTÃO DE LOGIN (REFEITO PARA MÁXIMA COMPATIBILIDADE)
+// 3. BOTÃO DE LOGIN
 const btnLogin = document.getElementById("loginGoogleBtn");
 if (btnLogin) {
   btnLogin.addEventListener("click", async () => {
     try {
       btnLogin.innerText = "Conectando...";
-      
-      // Configura a persistência no momento do clique para não travar o carregamento
       await setPersistence(auth, browserLocalPersistence);
       
-      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+      // Detecção de Mobile
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         await signInWithRedirect(auth, provider);
       } else {
         await signInWithPopup(auth, provider);
       }
     } catch (error) {
-      console.error("Erro no clique de login:", error);
-      alert("Erro ao logar. Tente abrir no Chrome ou Safari.");
+      alert("Erro ao logar. Se estiver no iPhone, use o Safari fora de outros apps.");
       btnLogin.innerText = "Entrar com Google";
     }
   });
@@ -82,22 +93,19 @@ const btnSalvar = document.getElementById("btnSalvar");
 if (btnSalvar) {
   btnSalvar.addEventListener("click", async (e) => {
     e.preventDefault();
-    const user = auth.currentUser;
     const nome = document.getElementById("nome").value;
-    if (!user || !nome) return alert("Preencha o nome!");
+    if (!auth.currentUser || !nome) return alert("Preencha o nome!");
     try {
       btnSalvar.disabled = true;
-      await setDoc(doc(db, "usuarios", user.uid), { 
-        nome: nome, 
-        email: user.email, 
-        dataCadastro: new Date() 
+      await setDoc(doc(db, "usuarios", auth.currentUser.uid), { 
+        nome: nome, email: auth.currentUser.email, dataCadastro: new Date() 
       });
       window.location.href = "app.html";
     } catch (err) { alert("Erro ao salvar."); btnSalvar.disabled = false; }
   });
 }
 
-// 5. INTERFACE DO APP (PERFIL E ABAS)
+// 5. INTERFACE DO APP
 function atualizarUIPerfil(user, dados) {
     if (document.getElementById("userNameHeader")) document.getElementById("userNameHeader").innerText = dados.nome;
     if (document.getElementById("userEmailHeader")) document.getElementById("userEmailHeader").innerText = user.email;
@@ -163,7 +171,7 @@ if (formMedicao) {
     };
     try {
       await addDoc(collection(db, "medicoes"), dados);
-      alert("Salvo com sucesso!");
+      alert("Salvo!");
       document.getElementById("tratamento").value = "";
       document.getElementById("caixa").value = "";
     } catch (err) { alert("Erro ao salvar."); }
