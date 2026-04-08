@@ -127,7 +127,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE E PLANILHA
+// EVENTOS DE CLIQUE E PLANILHA EM BLOCOS
 // ==========================================
 document.addEventListener('click', async (e) => {
     
@@ -167,7 +167,7 @@ document.addEventListener('click', async (e) => {
     }
 
     // ==============================================
-    // GERAÇÃO DO RELATÓRIO (COM SEQUÊNCIA RÍGIDA)
+    // GERAÇÃO DO RELATÓRIO (ESPAÇADO E EM BLOCOS)
     // ==============================================
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
@@ -184,6 +184,7 @@ document.addEventListener('click', async (e) => {
                 const dt = d.timestamp.toDate();
                 const dataStr = dt.toLocaleDateString();
                 const turno = d.turno || "Sem Turno";
+                // Cria um grupo único para cada Dia + Turno
                 const chaveGrupo = `${dataStr}_${turno}`;
 
                 if (!gruposMap[chaveGrupo]) {
@@ -199,17 +200,16 @@ document.addEventListener('click', async (e) => {
 
                 const chaveCaixa = `${d.tratamento}_${d.caixa}`;
                 
-                // TRAVA ANTI-DUPLICAÇÃO:
-                // Como o Firebase traz do mais novo para o mais velho (desc), 
-                // só salvamos se for a PRIMEIRA vez que vemos essa caixa (garantindo a mais recente)
+                // Salva a medição. Se houver duas medições na mesma caixa no mesmo turno, mantém a mais recente.
                 if (!gruposMap[chaveGrupo].medicoes[chaveCaixa]) {
                     gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObj: dt };
                 }
             });
 
+            // Ordena os blocos do mais recente para o mais antigo
             gruposArray.sort((a, b) => b.ordem - a.ordem);
 
-            // A ORDEM RÍGIDA É DEFINIDA AQUI (O "Molde de Gesso")
+            // A MÁGICA DA ORDEM PERFEITA DAS 9 CAIXAS
             const sequenciaCaixas = [
                 { t: "Tratamento 1", c: "Caixa 1" }, { t: "Tratamento 1", c: "Caixa 2" }, { t: "Tratamento 1", c: "Caixa 3" },
                 { t: "Tratamento 2", c: "Caixa 1" }, { t: "Tratamento 2", c: "Caixa 2" }, { t: "Tratamento 2", c: "Caixa 3" },
@@ -217,29 +217,31 @@ document.addEventListener('click', async (e) => {
             ];
 
             const cabecalho = "Data e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
-            let csv = "\ufeff"; 
+            let csv = "\ufeff"; // Padrão para acentuação correta no Excel
             
             const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
 
+            // Monta o arquivo Bloco a Bloco
             gruposArray.forEach((grupo, index) => {
                 csv += cabecalho; 
 
-                // Aqui o código obriga o CSV a seguir a ordem da lista acima, 
-                // independentemente da ordem que o usuário preencheu no aplicativo
                 sequenciaCaixas.forEach(caixaAlvo => {
                     const chave = `${caixaAlvo.t}_${caixaAlvo.c}`;
                     const med = grupo.medicoes[chave];
 
                     if (med) {
-                        const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString()}`;
+                        // Se a caixa foi preenchida, coloca os dados reais
+                        const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}`;
                         csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
                     } else {
-                        csv += `${grupo.dataStr} --:--:--;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
+                        // Se a caixa não foi medida, deixa a Data em branco para ficar limpo, mas mantém a estrutura!
+                        csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
 
+                // Adiciona DUAS linhas em branco entre um bloco e outro para dar o espaçamento da sua foto
                 if (index < gruposArray.length - 1) {
-                    csv += "\n";
+                    csv += "\n\n";
                 }
             });
 
@@ -253,7 +255,7 @@ document.addEventListener('click', async (e) => {
         finally { e.target.innerText = "📥 Planilha"; }
     }
 
-    // ABAS E HISTÓRICO
+    // CONTROLE DE ABAS E SAÍDA
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
         document.getElementById("secaoHistorico").style.display = "none";
