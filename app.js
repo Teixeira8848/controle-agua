@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -36,14 +36,62 @@ const getVal = (id) => {
 };
 
 // ==========================================
+// FUNÇÃO PARA CARREGAR O HISTÓRICO
+// ==========================================
+async function carregarHistorico() {
+    const lista = document.getElementById("listaHistorico");
+    if (!lista) return;
+    
+    lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as últimas 20 coletas...</p>';
+    
+    try {
+        // Busca as últimas 20 medições cadastradas por qualquer pessoa
+        const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(20));
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+            lista.innerHTML = '<p style="text-align: center; color: #666;">Nenhuma coleta registrada ainda.</p>';
+            return;
+        }
+
+        let html = "";
+        snap.forEach(doc => {
+            const d = doc.data();
+            const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
+            
+            // Monta um Cartão (Card) para cada medição
+            html += `
+            <div class="card-historico">
+                <div class="card-header">
+                    <span>${d.tratamento} - ${d.caixa}</span>
+                    <span style="color: #007bff;">${dataHora}</span>
+                </div>
+                <p style="margin: 3px 0;"><strong>Turno:</strong> ${d.turno}</p>
+                <p style="margin: 3px 0;"><strong>Coletor:</strong> ${d.coletor}</p>
+                
+                <div class="card-resumo">
+                    <span style="flex: 1; text-align: center; color: #d9534f; font-size: 0.8rem;"><strong>NH3:</strong><br>${d.amonia || '-'}</span>
+                    <span style="flex: 1; text-align: center; color: #5cb85c; font-size: 0.8rem;"><strong>pH:</strong><br>${d.ph || '-'}</span>
+                    <span style="flex: 1; text-align: center; color: #17a2b8; font-size: 0.8rem;"><strong>Temp:</strong><br>${d.temperatura || '-'}</span>
+                    <span style="flex: 1; text-align: center; color: #f0ad4e; font-size: 0.8rem;"><strong>OD:</strong><br>${d.od || '-'}</span>
+                </div>
+            </div>
+            `;
+        });
+        lista.innerHTML = html;
+    } catch (e) {
+        console.error("Erro no histórico:", e);
+        lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o histórico.</p>';
+    }
+}
+
+// ==========================================
 // MONITOR DE AUTENTICAÇÃO
 // ==========================================
-let timeoutFirebase = setTimeout(() => {
-    mostrarTela("telaLogin");
-}, 5000);
+let timeoutFirebase = setTimeout(() => { mostrarTela("telaLogin"); }, 5000);
 
 onAuthStateChanged(auth, async (user) => {
-    clearTimeout(timeoutFirebase); // O Firebase respondeu, cancela o timeout
+    clearTimeout(timeoutFirebase);
 
     if (user) {
         try {
@@ -67,7 +115,6 @@ onAuthStateChanged(auth, async (user) => {
                 mostrarTela("telaCadastro");
             }
         } catch (e) {
-            console.error("Erro ao buscar perfil:", e);
             mostrarTela("telaLogin");
         }
     } else {
@@ -80,41 +127,31 @@ onAuthStateChanged(auth, async (user) => {
 // ==========================================
 document.addEventListener('click', async (e) => {
     
-    // LOGIN UNIVERSAL (POPUP PARA PC E CELULAR)
+    // LOGIN
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Aguarde...";
         try {
             await setPersistence(auth, browserLocalPersistence);
-            
-            // O Segredo: Popup para todo mundo, ignora a proteção excessiva dos celulares
             await signInWithPopup(auth, provider);
-            
         } catch (err) {
             e.target.innerText = "Entrar com Google";
-            // Se o navegador do celular bloquear o popup agressivamente:
             if (err.code === 'auth/popup-blocked') {
-                alert("Seu navegador bloqueou o pop-up de login. Por favor, permita pop-ups para este site ou tente usar o Chrome/Safari.");
-            } else {
-                console.error(err);
-                alert("Falha no login. Certifique-se de estar usando o navegador fora do WhatsApp/Instagram.");
-            }
+                alert("Seu navegador bloqueou o pop-up de login. Por favor, permita pop-ups para este site.");
+            } else { alert("Falha no login."); }
         }
     }
 
-    // CADASTRO
+    // CADASTRO E ATUALIZAR PERFIL...
     if (e.target.id === 'btnSalvarCadastro') {
         const nomeEl = document.getElementById("nomeCadastro");
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
         e.target.innerText = "Salvando...";
         try {
-            await setDoc(doc(db, "usuarios", auth.currentUser.uid), {
-                nome: nomeEl.value, email: auth.currentUser.email, dataCadastro: new Date()
-            });
+            await setDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: nomeEl.value, email: auth.currentUser.email, dataCadastro: new Date() });
             window.location.reload();
         } catch (err) { alert("Erro ao salvar: " + err.message); }
     }
 
-    // ATUALIZAR NOME (PERFIL)
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
         if (!novoNome) return alert("O nome não pode ser vazio.");
@@ -126,7 +163,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // BAIXAR RELATÓRIO CSV
+    // PLANILHA (CSV)
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
         try {
@@ -143,24 +180,47 @@ document.addEventListener('click', async (e) => {
             link.download = "relatorio_bagrinhos.csv";
             link.click();
         } catch (err) { alert("Erro no relatório: " + err.message); }
-        finally { e.target.innerText = "Relatório"; }
+        finally { e.target.innerText = "📥 Planilha"; }
     }
 
-    // TROCA DE ABAS
+    // ==========================================
+    // CONTROLE DAS 3 ABAS
+    // ==========================================
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
+        document.getElementById("secaoHistorico").style.display = "none";
         document.getElementById("secaoPerfil").style.display = "none";
         document.getElementById("tabRegistro").style.backgroundColor = "#007bff";
+        document.getElementById("tabHistorico").style.backgroundColor = "#6c757d";
         document.getElementById("tabPerfil").style.backgroundColor = "#6c757d";
     }
+    
+    if (e.target.id === 'tabHistorico') {
+        document.getElementById("secaoRegistro").style.display = "none";
+        document.getElementById("secaoHistorico").style.display = "block";
+        document.getElementById("secaoPerfil").style.display = "none";
+        document.getElementById("tabHistorico").style.backgroundColor = "#007bff";
+        document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
+        document.getElementById("tabPerfil").style.backgroundColor = "#6c757d";
+        
+        // Quando clica na aba, carrega os dados automaticamente
+        carregarHistorico();
+    }
+
     if (e.target.id === 'tabPerfil') {
         document.getElementById("secaoRegistro").style.display = "none";
+        document.getElementById("secaoHistorico").style.display = "none";
         document.getElementById("secaoPerfil").style.display = "block";
         document.getElementById("tabPerfil").style.backgroundColor = "#007bff";
         document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
+        document.getElementById("tabHistorico").style.backgroundColor = "#6c757d";
     }
 
-    // LOGOUT
+    // BOTÃO ATUALIZAR HISTÓRICO
+    if (e.target.id === 'btnAtualizarHistorico') {
+        carregarHistorico();
+    }
+
     if (e.target.id === 'btnSair') {
         await signOut(auth);
         window.location.reload();
@@ -168,7 +228,7 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// SALVAR MEDIÇÃO (FORMULÁRIO)
+// SALVAR MEDIÇÃO
 // ==========================================
 document.addEventListener('submit', async (e) => {
     if (e.target.id === 'formMedicao') {
@@ -197,7 +257,6 @@ document.addEventListener('submit', async (e) => {
             });
             alert("Medição salva com sucesso!");
             
-            // Mantém os selects preenchidos, mas limpa só os campos de números
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
             
         } catch (err) { 
