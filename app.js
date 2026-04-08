@@ -2,7 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// 1. CONFIGURAÇÃO
 const firebaseConfig = {
   apiKey: "AIzaSyCRLrik-rHVfDNz_gn2P4oYgraM64iHI0k",
   authDomain: "parametros-de-qualidade.firebaseapp.com",
@@ -19,100 +18,93 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 let dadosUsuarioLocal = null;
-let aguardandoFirebase = true; // TRAVA DE SEGURANÇA MESTRE
 
-// 2. LÓGICA DE INICIALIZAÇÃO PARA SAFARI
-async function inicializarAuth() {
+// --- 1. LÓGICA DE BLOQUEIO DE LOOP ---
+// Verificamos se o usuário acabou de clicar em "Login"
+const verificandoLogin = localStorage.getItem("fazendo_login") === "true";
+
+// Função para limpar o estado de login
+const finalizarEstadoLogin = () => {
+    localStorage.removeItem("fazendo_login");
+};
+
+// 2. INICIALIZAÇÃO E CAPTURA DE RESULTADO
+async function initApp() {
     try {
-        // Força a persistência local antes de qualquer coisa
         await setPersistence(auth, browserLocalPersistence);
-        
-        // Tenta capturar o resultado do redirect (se houver)
         const result = await getRedirectResult(auth);
         if (result?.user) {
-            console.log("Login via Redirect recuperado!");
+            console.log("Login via redirect concluído!");
+            finalizarEstadoLogin();
         }
     } catch (error) {
-        console.error("Erro na inicialização da Auth:", error);
-    } finally {
-        // Libera o sistema para verificar o estado do usuário
-        aguardandoFirebase = false;
-        verificarRotas();
+        console.error("Erro no retorno do login:", error);
+        finalizarEstadoLogin();
     }
 }
+initApp();
 
-// 3. GERENCIADOR DE ROTAS (Executado após a trava ser liberada)
-function verificarRotas() {
-    onAuthStateChanged(auth, async (user) => {
-        const path = window.location.pathname;
-        
-        if (user) {
-            // USUÁRIO LOGADO
-            const docRef = doc(db, "usuarios", user.uid);
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-                dadosUsuarioLocal = docSnap.data();
-                if (document.getElementById("userNameHeader")) {
-                    atualizarUIPerfil(user, dadosUsuarioLocal);
-                }
-                if (path.endsWith("index.html") || path === "/") {
-                    window.location.href = "app.html";
-                }
-            } else if (!path.endsWith("cadastro.html")) {
-                window.location.href = "cadastro.html";
+// 3. GERENCIADOR DE ROTAS INTELIGENTE
+onAuthStateChanged(auth, async (user) => {
+    const path = window.location.pathname;
+
+    if (user) {
+        // USUÁRIO LOGADO
+        finalizarEstadoLogin();
+        const docRef = doc(db, "usuarios", user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            dadosUsuarioLocal = docSnap.data();
+            if (document.getElementById("userNameHeader")) {
+                atualizarUIPerfil(user, dadosUsuarioLocal);
+            }
+            if (path.endsWith("index.html") || path === "/") {
+                window.location.href = "app.html";
+            }
+        } else if (!path.endsWith("cadastro.html")) {
+            window.location.href = "cadastro.html";
+        }
+    } else {
+        // USUÁRIO NÃO LOGADO
+        // Se o usuário NÃO está logado, mas acabamos de clicar em "Login" (verificandoLogin),
+        // NÓS PROIBIMOS o redirecionamento para a index.html.
+        if (!verificandoLogin) {
+            if (!path.endsWith("index.html") && path !== "/") {
+                // Pequena folga de 2s para o Firebase respirar
+                setTimeout(() => {
+                    if (!auth.currentUser) window.location.href = "index.html";
+                }, 2000);
             }
         } else {
-            // USUÁRIO DESLOGADO
-            // Só redireciona se tiver certeza que não está processando nada
-            if (!aguardandoFirebase && !path.endsWith("index.html") && path !== "/") {
-                window.location.href = "index.html";
-            }
+            console.log("Aguardando retorno do Google... redirecionamento suspenso.");
         }
-    });
-}
-
-// Inicia o processo
-inicializarAuth();
+    }
+});
 
 // 4. BOTÃO DE LOGIN
 const btnLogin = document.getElementById("loginGoogleBtn");
 if (btnLogin) {
-  btnLogin.addEventListener("click", async () => {
-    try {
-      btnLogin.innerText = "Conectando...";
-      
-      // Se for iPhone/iPad/Android, usa Redirect. Se for PC, usa Popup.
-      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
-    } catch (error) {
-      alert("Erro ao logar. Tente abrir no navegador Chrome ou Safari diretamente.");
-      btnLogin.innerText = "Entrar com Google";
-    }
-  });
+    btnLogin.onclick = async () => {
+        try {
+            btnLogin.innerText = "Conectando...";
+            // Marcamos que o processo de login começou (evita o loop)
+            localStorage.setItem("fazendo_login", "true");
+            
+            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                await signInWithRedirect(auth, provider);
+            } else {
+                await signInWithPopup(auth, provider);
+            }
+        } catch (error) {
+            finalizarEstadoLogin();
+            alert("Erro ao logar.");
+            btnLogin.innerText = "Entrar com Google";
+        }
+    };
 }
 
-// 5. CADASTRO INICIAL
-const btnSalvar = document.getElementById("btnSalvar");
-if (btnSalvar) {
-  btnSalvar.addEventListener("click", async (e) => {
-    e.preventDefault();
-    const nome = document.getElementById("nome").value;
-    if (!auth.currentUser || !nome) return alert("Preencha o nome!");
-    try {
-      btnSalvar.disabled = true;
-      await setDoc(doc(db, "usuarios", auth.currentUser.uid), { 
-        nome: nome, email: auth.currentUser.email, dataCadastro: new Date() 
-      });
-      window.location.href = "app.html";
-    } catch (err) { alert("Erro ao salvar."); btnSalvar.disabled = false; }
-  });
-}
-
-// 6. INTERFACE DO APP (PERFIL E ABAS)
+// --- 5. RESTANTE DAS FUNÇÕES (CADASTRO, REGISTRO, PERFIL) ---
 function atualizarUIPerfil(user, dados) {
     if (document.getElementById("userNameHeader")) document.getElementById("userNameHeader").innerText = dados.nome;
     if (document.getElementById("userEmailHeader")) document.getElementById("userEmailHeader").innerText = user.email;
@@ -141,7 +133,6 @@ if (tReg && tPer) {
     };
 }
 
-// Atualizar Nome no Perfil
 document.getElementById("btnAtualizarPerfil")?.addEventListener("click", async () => {
     const user = auth.currentUser;
     const novoNome = document.getElementById("editNome").value;
@@ -153,7 +144,6 @@ document.getElementById("btnAtualizarPerfil")?.addEventListener("click", async (
     } catch (e) { alert("Erro ao atualizar."); }
 });
 
-// 7. SALVAR MEDIÇÃO
 const formMedicao = document.getElementById("formMedicao");
 if (formMedicao) {
   formMedicao.onsubmit = async (e) => {
@@ -178,7 +168,7 @@ if (formMedicao) {
     };
     try {
       await addDoc(collection(db, "medicoes"), dados);
-      alert("Salvo com sucesso!");
+      alert("Salvo!");
       document.getElementById("tratamento").value = "";
       document.getElementById("caixa").value = "";
     } catch (err) { alert("Erro ao salvar."); }
@@ -186,7 +176,6 @@ if (formMedicao) {
   };
 }
 
-// 8. RELATÓRIO CSV
 document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async () => {
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"));
@@ -205,8 +194,10 @@ document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async (
     } catch (e) { alert("Erro no relatório."); }
 });
 
-// 9. LOGOUT
 const btnSair = document.getElementById("btnSair");
 if (btnSair) {
-    btnSair.onclick = () => signOut(auth).then(() => window.location.href = "index.html");
+    btnSair.onclick = () => {
+        finalizarEstadoLogin();
+        signOut(auth).then(() => window.location.href = "index.html");
+    };
 }
