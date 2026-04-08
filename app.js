@@ -16,7 +16,6 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// Variável global para checar se é admin
 let isAdmin = false; 
 
 // ==========================================
@@ -62,7 +61,6 @@ async function carregarHistorico() {
             const idDoc = doc.id;
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Só gera o código do botão da lixeira se o usuário for admin
             const botaoLixeiraHtml = isAdmin ? `<button class="btn-excluir" data-id="${idDoc}" style="background: none; border: none; color: #dc3545; font-size: 1.2rem; cursor: pointer; padding: 0;" title="Apagar Registro">🗑️</button>` : '';
 
             html += `
@@ -100,7 +98,7 @@ async function carregarHistorico() {
 }
 
 // ==========================================
-// MONITOR DE AUTENTICAÇÃO
+// MONITOR DE AUTENTICAÇÃO (BLINDADO)
 // ==========================================
 let timeoutFirebase = setTimeout(() => { mostrarTela("telaLogin"); }, 5000);
 
@@ -113,7 +111,6 @@ onAuthStateChanged(auth, async (user) => {
             if (docSnap.exists()) {
                 const d = docSnap.data();
                 
-                // Define se a pessoa logada é admin
                 isAdmin = d.admin === true;
 
                 escrever("userNameHeader", d.nome);
@@ -127,20 +124,35 @@ onAuthStateChanged(auth, async (user) => {
                 escrever("userIniciaisSmall", inicial);
                 escrever("userIniciaisLarge", inicial);
 
-                // Mostra as ferramentas secretas se for admin
+                // Armadura de segurança: só tenta mudar se os elementos existirem no HTML
                 if (isAdmin) {
-                    document.getElementById("btnBaixarRelatorio").style.display = "block";
-                    document.getElementById("badgeAdmin").style.display = "block"; // Uma tag na aba perfil pra você saber que deu certo
+                    const btnPlanilha = document.getElementById("btnBaixarRelatorio");
+                    if (btnPlanilha) btnPlanilha.style.display = "block";
+                    
+                    const badge = document.getElementById("badgeAdmin");
+                    if (badge) badge.style.display = "block";
+                } else {
+                    const btnPlanilha = document.getElementById("btnBaixarRelatorio");
+                    if (btnPlanilha) btnPlanilha.style.display = "none";
                 }
+
+                // Reseta o texto do botão caso tenha ficado preso
+                const btnLogin = document.getElementById('loginGoogleBtn');
+                if (btnLogin) btnLogin.innerText = "Entrar com Google";
 
                 mostrarTela("telaApp");
             } else {
                 mostrarTela("telaCadastro");
             }
         } catch (e) {
+            console.error("Erro no carregamento do perfil:", e);
+            const btnLogin = document.getElementById('loginGoogleBtn');
+            if (btnLogin) btnLogin.innerText = "Entrar com Google";
             mostrarTela("telaLogin");
         }
     } else {
+        const btnLogin = document.getElementById('loginGoogleBtn');
+        if (btnLogin) btnLogin.innerText = "Entrar com Google";
         mostrarTela("telaLogin");
     }
 });
@@ -169,7 +181,6 @@ document.addEventListener('click', async (e) => {
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
         e.target.innerText = "Salvando...";
         try {
-            // Novos usuários entram como admin=false por padrão
             await setDoc(doc(db, "usuarios", auth.currentUser.uid), { 
                 nome: nomeEl.value, 
                 email: auth.currentUser.email, 
@@ -194,7 +205,7 @@ document.addEventListener('click', async (e) => {
     // LÓGICA DE EXCLUSÃO (Protegida)
     const btnExcluir = e.target.closest('.btn-excluir');
     if (btnExcluir) {
-        if (!isAdmin) return alert("Apenas administradores podem apagar registros."); // Dupla verificação
+        if (!isAdmin) return alert("Apenas administradores podem apagar registros."); 
 
         const idDoc = btnExcluir.getAttribute('data-id');
         if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
@@ -210,7 +221,7 @@ document.addEventListener('click', async (e) => {
 
     // GERAÇÃO DO RELATÓRIO (Protegida)
     if (e.target.id === 'btnBaixarRelatorio') {
-        if (!isAdmin) return alert("Acesso Negado."); // Dupla verificação
+        if (!isAdmin) return alert("Acesso Negado."); 
         
         e.target.innerText = "Gerando...";
         try {
