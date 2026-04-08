@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRLrik-rHVfDNz_gn2P4oYgraM64iHI0k",
@@ -16,6 +16,9 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// ==========================================
+// FUNÇÕES DE UTILIDADE E INTERFACE
+// ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
     const alvo = document.getElementById(id);
@@ -32,20 +35,22 @@ const getVal = (id) => {
     return (el && el.value !== "") ? parseFloat(el.value) : null;
 };
 
+// ==========================================
+// MONITOR DE AUTENTICAÇÃO
+// ==========================================
 let timeoutFirebase = setTimeout(() => {
     mostrarTela("telaLogin");
 }, 5000);
 
-getRedirectResult(auth).catch(e => console.warn("Aviso Redirect:", e));
-
 onAuthStateChanged(auth, async (user) => {
-    clearTimeout(timeoutFirebase);
+    clearTimeout(timeoutFirebase); // O Firebase respondeu, cancela o timeout
 
     if (user) {
         try {
             const docSnap = await getDoc(doc(db, "usuarios", user.uid));
             if (docSnap.exists()) {
                 const d = docSnap.data();
+                
                 escrever("userNameHeader", d.nome);
                 escrever("userEmailHeader", user.email);
                 escrever("userEmailText", user.email);
@@ -70,22 +75,33 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+// ==========================================
+// EVENTOS DE CLIQUE
+// ==========================================
 document.addEventListener('click', async (e) => {
+    
+    // LOGIN UNIVERSAL (POPUP PARA PC E CELULAR)
     if (e.target.id === 'loginGoogleBtn') {
-        e.target.innerText = "Conectando...";
+        e.target.innerText = "Aguarde...";
         try {
             await setPersistence(auth, browserLocalPersistence);
-            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                await signInWithRedirect(auth, provider);
-            } else {
-                await signInWithPopup(auth, provider);
-            }
+            
+            // O Segredo: Popup para todo mundo, ignora a proteção excessiva dos celulares
+            await signInWithPopup(auth, provider);
+            
         } catch (err) {
             e.target.innerText = "Entrar com Google";
-            alert("Erro ao logar. Atualize a página e tente novamente.");
+            // Se o navegador do celular bloquear o popup agressivamente:
+            if (err.code === 'auth/popup-blocked') {
+                alert("Seu navegador bloqueou o pop-up de login. Por favor, permita pop-ups para este site ou tente usar o Chrome/Safari.");
+            } else {
+                console.error(err);
+                alert("Falha no login. Certifique-se de estar usando o navegador fora do WhatsApp/Instagram.");
+            }
         }
     }
 
+    // CADASTRO
     if (e.target.id === 'btnSalvarCadastro') {
         const nomeEl = document.getElementById("nomeCadastro");
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
@@ -98,6 +114,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao salvar: " + err.message); }
     }
 
+    // ATUALIZAR NOME (PERFIL)
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
         if (!novoNome) return alert("O nome não pode ser vazio.");
@@ -109,6 +126,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
+    // BAIXAR RELATÓRIO CSV
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
         try {
@@ -128,6 +146,7 @@ document.addEventListener('click', async (e) => {
         finally { e.target.innerText = "Relatório"; }
     }
 
+    // TROCA DE ABAS
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
         document.getElementById("secaoPerfil").style.display = "none";
@@ -141,6 +160,7 @@ document.addEventListener('click', async (e) => {
         document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
     }
 
+    // LOGOUT
     if (e.target.id === 'btnSair') {
         await signOut(auth);
         window.location.reload();
@@ -148,7 +168,7 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// SALVAR MEDIÇÃO
+// SALVAR MEDIÇÃO (FORMULÁRIO)
 // ==========================================
 document.addEventListener('submit', async (e) => {
     if (e.target.id === 'formMedicao') {
@@ -173,7 +193,7 @@ document.addEventListener('submit', async (e) => {
                 condutividade: getVal("condutividade"),
                 salinidade: getVal("salinidade"),
                 solidos: getVal("solidos"),
-                timestamp: serverTimestamp() // A hora/data já vai aqui automática
+                timestamp: serverTimestamp()
             });
             alert("Medição salva com sucesso!");
             
