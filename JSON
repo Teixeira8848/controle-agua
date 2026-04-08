@@ -1,0 +1,21 @@
+{
+  "usuario": "Nome da Pessoa",
+  "dataHora": "2026-04-07T14:36:00Z",
+  "turno": "Manhã",
+  "tanque": "Tratamento 1 - Caixa 2",
+  "colorimetrico": {
+    "amonia_mg_L": 0.5,
+    "nitrito_mg_L": 0.2,
+    "alcalinidade_mg_L": 120,
+    "dureza_mg_L": 200
+  },
+  "multiparametro": {
+    "ph": 7.2,
+    "oxigenio_dissolvido_mg_L": 6.5,
+    "temperatura_C": 28,
+    "condutividade": 1.2,
+    "salinidade": null,
+    "solidos_totais": null
+  },
+  "observacoes": ""
+}
