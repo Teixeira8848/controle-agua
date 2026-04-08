@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 let isAdmin = false; 
-let registrosAtuais = {}; // Guarda os dados dos cards para poder editar sem buscar no banco de novo
+let registrosAtuais = {}; 
 
 // ==========================================
 // FUNÇÕES DE INTERFACE
@@ -38,6 +38,11 @@ const getVal = (id) => {
     return (el && el.value !== "") ? parseFloat(el.value) : null;
 };
 
+const setEditVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = (val !== null && val !== undefined) ? val : "";
+};
+
 // ==========================================
 // FUNÇÃO HISTÓRICO
 // ==========================================
@@ -56,16 +61,15 @@ async function carregarHistorico() {
         }
 
         let html = "";
-        registrosAtuais = {}; // Limpa a memória
+        registrosAtuais = {}; 
         
         snap.forEach(doc => {
             const d = doc.data();
             const idDoc = doc.id;
-            registrosAtuais[idDoc] = d; // Salva na memória para a tela de edição
+            registrosAtuais[idDoc] = d; 
             
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Botões de Admin (Lápis para editar e Vermelho para Excluir)
             let botoesAdmin = "";
             if (isAdmin) {
                 botoesAdmin = `
@@ -124,7 +128,6 @@ async function carregarListaUsuarios() {
         snap.forEach(docSnap => {
             const u = docSnap.data();
             const uId = docSnap.id;
-            
             const isEuMesmo = (uId === auth.currentUser.uid);
             
             let btnAcao = "";
@@ -155,7 +158,7 @@ async function carregarListaUsuarios() {
 }
 
 // ==========================================
-// MONITOR DE AUTENTICAÇÃO (BLINDADO)
+// MONITOR DE AUTENTICAÇÃO
 // ==========================================
 let timeoutFirebase = setTimeout(() => { mostrarTela("telaLogin"); }, 5000);
 
@@ -167,7 +170,6 @@ onAuthStateChanged(auth, async (user) => {
             const docSnap = await getDoc(doc(db, "usuarios", user.uid));
             if (docSnap.exists()) {
                 const d = docSnap.data();
-                
                 isAdmin = d.admin === true;
 
                 escrever("userNameHeader", d.nome);
@@ -222,6 +224,7 @@ onAuthStateChanged(auth, async (user) => {
 // ==========================================
 document.addEventListener('click', async (e) => {
     
+    // LOGIN E CADASTRO
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Aguarde...";
         try {
@@ -259,29 +262,31 @@ document.addEventListener('click', async (e) => {
     const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
         if (!isAdmin) return alert("Acesso negado.");
-        const idDoc = btnEditar.getAttribute('data-id');
-        const d = registrosAtuais[idDoc]; // Pega os dados que estão na memória da tela
         
-        // Preenche o formulário flutuante com os dados antigos
-        document.getElementById("editIdDoc").value = idDoc;
-        document.getElementById("editTurno").value = d.turno || "";
-        document.getElementById("editTratamento").value = d.tratamento || "";
-        document.getElementById("editCaixa").value = d.caixa || "";
-        
-        // Preenche os números ou deixa vazio se não existirem
-        document.getElementById("editAmonia").value = d.amonia !== null && d.amonia !== undefined ? d.amonia : "";
-        document.getElementById("editNitrito").value = d.nitrito !== null && d.nitrito !== undefined ? d.nitrito : "";
-        document.getElementById("editAlcalinidade").value = d.alcalinidade !== null && d.alcalinidade !== undefined ? d.alcalinidade : "";
-        document.getElementById("editDureza").value = d.dureza !== null && d.dureza !== undefined ? d.dureza : "";
-        document.getElementById("editPh").value = d.ph !== null && d.ph !== undefined ? d.ph : "";
-        document.getElementById("editOd").value = d.od !== null && d.od !== undefined ? d.od : "";
-        document.getElementById("editTemperatura").value = d.temperatura !== null && d.temperatura !== undefined ? d.temperatura : "";
-        document.getElementById("editCondutividade").value = d.condutividade !== null && d.condutividade !== undefined ? d.condutividade : "";
-        document.getElementById("editSalinidade").value = d.salinidade !== null && d.salinidade !== undefined ? d.salinidade : "";
-        document.getElementById("editSolidos").value = d.solidos !== null && d.solidos !== undefined ? d.solidos : "";
+        const modal = document.getElementById("modalEditar");
+        if (!modal) return alert("A Janela de Edição não foi encontrada. Você esqueceu de atualizar o arquivo index.html!");
 
-        // Mostra a janela
-        document.getElementById("modalEditar").style.display = "flex";
+        const idDoc = btnEditar.getAttribute('data-id');
+        const d = registrosAtuais[idDoc]; 
+        
+        if (!d) return alert("Erro ao recuperar dados da medição.");
+
+        document.getElementById("editIdDoc").value = idDoc;
+        setEditVal("editTurno", d.turno);
+        setEditVal("editTratamento", d.tratamento);
+        setEditVal("editCaixa", d.caixa);
+        setEditVal("editAmonia", d.amonia);
+        setEditVal("editNitrito", d.nitrito);
+        setEditVal("editAlcalinidade", d.alcalinidade);
+        setEditVal("editDureza", d.dureza);
+        setEditVal("editPh", d.ph);
+        setEditVal("editOd", d.od);
+        setEditVal("editTemperatura", d.temperatura);
+        setEditVal("editCondutividade", d.condutividade);
+        setEditVal("editSalinidade", d.salinidade);
+        setEditVal("editSolidos", d.solidos);
+
+        modal.style.display = "flex";
     }
 
     // FECHAR A JANELA DE EDIÇÃO
@@ -292,7 +297,7 @@ document.addEventListener('click', async (e) => {
     // EXCLUIR HISTÓRICO
     const btnExcluir = e.target.closest('.btn-excluir-novo');
     if (btnExcluir) {
-        if (!isAdmin) return alert("Apenas administradores podem apagar registros."); 
+        if (!isAdmin) return alert("Acesso negado."); 
         const idDoc = btnExcluir.getAttribute('data-id');
         if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
             try {
@@ -423,9 +428,11 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// SALVAR NOVA MEDIÇÃO
+// SALVAR OU EDITAR MEDIÇÃO
 // ==========================================
 document.addEventListener('submit', async (e) => {
+    
+    // SALVAR NOVA MEDIÇÃO
     if (e.target.id === 'formMedicao') {
         e.preventDefault();
         const btn = document.getElementById("btnSalvarMedicao");
@@ -474,7 +481,6 @@ document.addEventListener('submit', async (e) => {
         };
 
         try {
-            // updateDoc não afeta campos que não estão listados aqui (como timestamp e coletor originais)
             await updateDoc(doc(db, "medicoes", idDoc), {
                 turno: document.getElementById("editTurno").value,
                 tratamento: document.getElementById("editTratamento").value,
@@ -492,7 +498,7 @@ document.addEventListener('submit', async (e) => {
             });
             alert("Registro atualizado com sucesso!");
             document.getElementById("modalEditar").style.display = "none";
-            carregarHistorico(); // Atualiza a tela de histórico
+            carregarHistorico(); 
         } catch (err) {
             alert("Erro ao editar: " + err.message);
         } finally {
