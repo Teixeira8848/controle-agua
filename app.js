@@ -49,13 +49,13 @@ onAuthStateChanged(auth, async (user) => {
       }
     } catch (e) { console.error("Erro ao buscar usuário:", e); }
   } else {
-    // Se não há usuário, mas o Firebase ainda pode estar carregando (espera 2 segundos)
+    // Se não há usuário, mas o Firebase ainda pode estar carregando (espera 5 segundos)
     // Só redireciona se tiver certeza que não está logado e não está na index
     if (!path.endsWith("index.html") && path !== "/") {
        // Pequeno atraso para evitar o loop antes do Firebase inicializar
        setTimeout(() => {
            if (!auth.currentUser) window.location.href = "index.html";
-       }, 1500);
+       }, 5000);
     }
   }
 });
