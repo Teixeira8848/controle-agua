@@ -16,99 +16,125 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// Função que controla as telas com segurança
-function alternarTela(id) {
+// ==========================================
+// FUNÇÕES DE SEGURANÇA (EVITAM O CRASH DO SCRIPT)
+// ==========================================
+function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
-    const telaAlvo = document.getElementById(id);
-    if (telaAlvo) telaAlvo.classList.add('ativa');
+    const alvo = document.getElementById(id);
+    if (alvo) alvo.classList.add('ativa');
 }
 
-// 1. INICIALIZAÇÃO E TRATAMENTO DE LOGIN
-async function start() {
+function escrever(id, texto) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = texto;
+}
+
+function adicionarClique(id, callback) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.onclick = callback;
+    } else {
+        console.warn(`Elemento não encontrado: ${id}`);
+    }
+}
+
+function adicionarEnvio(id, callback) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.onsubmit = callback;
+    } else {
+        console.warn(`Formulário não encontrado: ${id}`);
+    }
+}
+
+// ==========================================
+// 1. MONITOR DE AUTENTICAÇÃO (CONTROLA AS TELAS)
+// ==========================================
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            const docSnap = await getDoc(doc(db, "usuarios", user.uid));
+            if (docSnap.exists()) {
+                const d = docSnap.data();
+                escrever("userNameHeader", d.nome);
+                escrever("userEmailHeader", user.email);
+                escrever("userIdText", user.uid);
+                if (d.nome) escrever("userIniciais", d.nome.charAt(0).toUpperCase());
+                mostrarTela("telaApp");
+            } else {
+                mostrarTela("telaCadastro");
+            }
+        } catch (e) {
+            console.error("Erro no Firestore:", e);
+            mostrarTela("telaLogin");
+        }
+    } else {
+        mostrarTela("telaLogin");
+    }
+});
+
+// Força a resolução do Redirect para celulares
+getRedirectResult(auth).catch(e => console.warn("Aviso do Redirect:", e));
+
+// ==========================================
+// 2. AÇÕES DOS BOTÕES (COM SEGURANÇA)
+// ==========================================
+
+// Login
+adicionarClique("loginGoogleBtn", async () => {
+    const btn = document.getElementById("loginGoogleBtn");
+    btn.innerText = "Conectando...";
     try {
         await setPersistence(auth, browserLocalPersistence);
-        const result = await getRedirectResult(auth);
-        if (result?.user) console.log("Login por redirecionamento detectado!");
-    } catch (e) { console.error("Erro na inicialização:", e); }
-
-    // O MONITOR SÓ MUDA A TELA DEPOIS QUE O FIREBASE RESPONDE
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            try {
-                const snap = await getDoc(doc(db, "usuarios", user.uid));
-                if (snap.exists()) {
-                    const d = snap.data();
-                    // Preenche a UI com segurança
-                    if(document.getElementById("userNameHeader")) document.getElementById("userNameHeader").innerText = d.nome;
-                    if(document.getElementById("userEmailHeader")) document.getElementById("userEmailHeader").innerText = user.email;
-                    if(document.getElementById("userIdText")) document.getElementById("userIdText").innerText = user.uid;
-                    if(document.getElementById("userIniciais")) document.getElementById("userIniciais").innerText = d.nome.charAt(0).toUpperCase();
-                    alternarTela("telaApp");
-                } else {
-                    alternarTela("telaCadastro");
-                }
-            } catch (err) {
-                console.error(err);
-                alternarTela("telaLogin");
-            }
-        } else {
-            alternarTela("telaLogin");
-        }
-    });
-}
-
-// Inicia o motor
-start();
-
-// 2. AÇÕES DE LOGIN E CADASTRO
-document.getElementById("loginGoogleBtn").onclick = async () => {
-    document.getElementById("loginGoogleBtn").innerText = "Conectando...";
-    try {
         if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
             await signInWithRedirect(auth, provider);
         } else {
             await signInWithPopup(auth, provider);
         }
     } catch (e) {
-        alert("Erro no login: " + e.message);
-        document.getElementById("loginGoogleBtn").innerText = "Entrar com Google";
+        console.error(e);
+        alert("Erro na autenticação. Tente novamente.");
+        btn.innerText = "Entrar com Google";
     }
-};
+});
 
-document.getElementById("btnSalvarCadastro").onclick = async () => {
-    const nome = document.getElementById("nomeCadastro").value;
-    if (!nome) return alert("Digite seu nome!");
+// Cadastro
+adicionarClique("btnSalvarCadastro", async () => {
+    const nomeEl = document.getElementById("nomeCadastro");
+    if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
     try {
         await setDoc(doc(db, "usuarios", auth.currentUser.uid), {
-            nome: nome, email: auth.currentUser.email, data: new Date()
+            nome: nomeEl.value, email: auth.currentUser.email, data: new Date()
         });
-        window.location.reload(); // Recarrega para o onAuthStateChanged assumir o controle
-    } catch (e) { alert(e.message); }
-};
+        window.location.reload();
+    } catch (e) { alert("Erro ao salvar cadastro: " + e.message); }
+});
 
-// 3. AÇÕES DO APP
-const form = document.getElementById("formMedicao");
-if (form) {
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById("btnSalvarMedicao");
-        btn.disabled = true;
-        try {
-            await addDoc(collection(db, "medicoes"), {
-                coletor: document.getElementById("userNameHeader").innerText,
-                tanque: document.getElementById("tanque").value,
-                amonia: parseFloat(document.getElementById("amonia").value),
-                ph: parseFloat(document.getElementById("ph").value),
-                timestamp: serverTimestamp()
-            });
-            alert("✅ Medição salva!");
-            form.reset();
-        } catch (e) { alert("Erro: " + e.message); }
-        finally { btn.disabled = false; }
-    };
-}
+// Medição
+adicionarEnvio("formMedicao", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btnSalvarMedicao");
+    if(btn) btn.disabled = true;
+    try {
+        await addDoc(collection(db, "medicoes"), {
+            coletor: document.getElementById("userNameHeader").innerText,
+            tanque: document.getElementById("tanque").value,
+            amonia: parseFloat(document.getElementById("amonia").value),
+            ph: parseFloat(document.getElementById("ph").value),
+            timestamp: serverTimestamp()
+        });
+        alert("Medição salva com sucesso!");
+        document.getElementById("formMedicao").reset();
+    } catch (e) { 
+        alert("Erro ao salvar medição: " + e.message); 
+    } finally { 
+        if(btn) btn.disabled = false; 
+    }
+});
 
-document.getElementById("btnBaixarRelatorio").onclick = async () => {
+// Relatório CSV
+adicionarClique("btnBaixarRelatorio", async () => {
     try {
         const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
         let csv = "\ufeffData,Coletor,Tanque,Amonia,pH\n";
@@ -122,16 +148,26 @@ document.getElementById("btnBaixarRelatorio").onclick = async () => {
         link.href = URL.createObjectURL(blob);
         link.download = "relatorio.csv";
         link.click();
-    } catch (e) { alert(e.message); }
-};
+    } catch (e) {
+        alert("Erro ao gerar relatório: " + e.message);
+    }
+});
 
-// 4. NAVEGAÇÃO INTERNA E SAIR
-document.getElementById("tabRegistro").onclick = () => {
-    document.getElementById("secaoRegistro").style.display = "block";
-    document.getElementById("secaoPerfil").style.display = "none";
-};
-document.getElementById("tabPerfil").onclick = () => {
-    document.getElementById("secaoRegistro").style.display = "none";
-    document.getElementById("secaoPerfil").style.display = "block";
-};
-document.getElementById("btnSair").onclick = () => signOut(auth).then(() => window.location.reload());
+// Abas e Sair
+adicionarClique("tabRegistro", () => {
+    const secReg = document.getElementById("secaoRegistro");
+    const secPerf = document.getElementById("secaoPerfil");
+    if(secReg) secReg.style.display = "block";
+    if(secPerf) secPerf.style.display = "none";
+});
+
+adicionarClique("tabPerfil", () => {
+    const secReg = document.getElementById("secaoRegistro");
+    const secPerf = document.getElementById("secaoPerfil");
+    if(secReg) secReg.style.display = "none";
+    if(secPerf) secPerf.style.display = "block";
+});
+
+adicionarClique("btnSair", () => {
+    signOut(auth).then(() => window.location.reload());
+});
