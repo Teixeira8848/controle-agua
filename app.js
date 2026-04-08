@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 // ==========================================
-// FUNÇÕES DE INTERFACE SEGURAS
+// FUNÇÕES DE INTERFACE E SEGURANÇA
 // ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
@@ -30,16 +30,29 @@ function escrever(id, texto) {
     if (el) el.innerText = texto;
 }
 
-// Helper para pegar valores numéricos em segurança (lida com os opcionais)
 const getVal = (id) => {
     const el = document.getElementById(id);
     return (el && el.value !== "") ? parseFloat(el.value) : null;
 };
 
 // ==========================================
-// MONITOR DE AUTENTICAÇÃO (CONTROLA O LOOP)
+// TIMER DE SEGURANÇA (O BOTÃO DE PÂNICO)
 // ==========================================
+// Se o Firebase não responder em 4 segundos, força a tela de Login
+let timeoutSeguranca = setTimeout(() => {
+    console.warn("Aviso: Firebase demorou a responder. Liberando tela de login.");
+    mostrarTela("telaLogin");
+}, 4000);
+
+// ==========================================
+// MONITOR DE AUTENTICAÇÃO
+// ==========================================
+getRedirectResult(auth).catch(e => console.warn("Erro silencioso de Redirect:", e));
+
 onAuthStateChanged(auth, async (user) => {
+    // O Firebase respondeu! Cancela o botão de pânico
+    clearTimeout(timeoutSeguranca); 
+
     if (user) {
         try {
             const docSnap = await getDoc(doc(db, "usuarios", user.uid));
@@ -54,15 +67,13 @@ onAuthStateChanged(auth, async (user) => {
                 mostrarTela("telaCadastro");
             }
         } catch (e) {
-            console.error(e);
+            console.error("Erro no Banco:", e);
             mostrarTela("telaLogin");
         }
     } else {
         mostrarTela("telaLogin");
     }
 });
-
-getRedirectResult(auth).catch(e => console.error("Redirect Error:", e));
 
 // ==========================================
 // DELEGAÇÃO DE EVENTOS (À PROVA DE TRAVAMENTO)
@@ -81,7 +92,7 @@ document.addEventListener('click', async (e) => {
             }
         } catch (err) {
             e.target.innerText = "Entrar com Google";
-            alert("Erro ao conectar.");
+            alert("Falha de conexão. Tente novamente.");
         }
     }
 
@@ -98,7 +109,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro: " + err.message); }
     }
 
-    // RELATÓRIO (RESTAURADO COM TODAS AS COLUNAS)
+    // RELATÓRIO
     if (e.target.id === 'btnBaixarRelatorio') {
         try {
             const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
@@ -125,4 +136,45 @@ document.addEventListener('click', async (e) => {
         document.getElementById("secaoRegistro").style.display = "none";
         document.getElementById("secaoPerfil").style.display = "block";
     }
-    if (
+    if (e.target.id === 'btnSair') {
+        await signOut(auth);
+        window.location.reload();
+    }
+});
+
+// ==========================================
+// SALVAR MEDIÇÃO
+// ==========================================
+document.addEventListener('submit', async (e) => {
+    if (e.target.id === 'formMedicao') {
+        e.preventDefault();
+        const btn = document.getElementById("btnSalvarMedicao");
+        if(btn) btn.disabled = true;
+        
+        try {
+            await addDoc(collection(db, "medicoes"), {
+                coletor: document.getElementById("userNameHeader")?.innerText || "N/A",
+                turno: document.getElementById("turno").value,
+                tratamento: document.getElementById("tratamento").value,
+                caixa: document.getElementById("caixa").value,
+                amonia: getVal("amonia"),
+                nitrito: getVal("nitrito"),
+                alcalinidade: getVal("alcalinidade"),
+                dureza: getVal("dureza"),
+                ph: getVal("ph"),
+                od: getVal("od"),
+                temperatura: getVal("temperatura"),
+                condutividade: getVal("condutividade"),
+                salinidade: getVal("salinidade"),
+                solidos: getVal("solidos"),
+                timestamp: serverTimestamp()
+            });
+            alert("✅ Medição salva com sucesso!");
+            e.target.reset(); 
+        } catch (err) { 
+            alert("Erro: " + err.message); 
+        } finally { 
+            if(btn) btn.disabled = false; 
+        }
+    }
+});
