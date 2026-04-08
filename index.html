@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Qualidade da Água</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body { font-family: Arial, sans-serif; background:#f2f2f2; padding:10px; margin:0; }
+    .card { background:white; padding:20px; border-radius:10px; margin-bottom:15px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    input, select, button { width:100%; padding:15px; margin-top:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ccc; font-size:16px; box-sizing:border-box; }
+    button { background:#28a745; color:white; border:none; font-weight:bold; cursor:pointer; }
+    h2,h3 { margin-top:0; }
+    #registroCard { display:none; }
+    ul { padding-left:10px; max-height:300px; overflow-y:auto; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="card" id="loginCard">
+  <h2>Login</h2>
+  <button id="btnLogin">Entrar com Google</button>
+</div>
+
+<!-- REGISTRO -->
+<div class="card" id="registroCard">
+  <h2>Registro de Qualidade da Água</h2>
+
+  <label>Turno</label>
+  <select id="turno">
+    <option>Manhã</option>
+    <option>Tarde</option>
+  </select>
+
+  <label>Tratamento</label>
+  <select id="tratamento">
+    <option>T1</option>
+    <option>T2</option>
+    <option>T3</option>
+  </select>
+
+  <label>Tanque</label>
+  <select id="tanque">
+    <option>Caixa 1</option>
+    <option>Caixa 2</option>
+    <option>Caixa 3</option>
+  </select>
+
+  <h3>🧪 Kit Colorimétrico</h3>
+  <input id="amonia" placeholder="Amônia (mg/L)">
+  <input id="nitrito" placeholder="Nitrito (mg/L)">
+  <input id="alcalinidade" placeholder="Alcalinidade (mg/L CaCO3)">
+  <input id="dureza" placeholder="Dureza (mg/L CaCO3)">
+
+  <h3>🌊 Multiparâmetro</h3>
+  <input id="ph" placeholder="pH">
+  <input id="od" placeholder="Oxigênio Dissolvido (mg/L)">
+  <input id="temperatura" placeholder="Temperatura (°C)">
+  <input id="condutividade" placeholder="Condutividade">
+  <input id="salinidade" placeholder="Salinidade">
+  <input id="solidos" placeholder="Sólidos Totais">
+
+  <button id="btnSalvar">Salvar Registro</button>
+  <button id="btnCarregar">Carregar Histórico</button>
+
+  <ul id="lista"></ul>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
