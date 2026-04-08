@@ -1,20 +1,84 @@
-<div class="grid-selects">
-  <div>
-    <label for="tratamento">Tratamento:*</label>
-    <select id="tratamento" class="select-field" required>
-      <option value="" disabled selected>Selecionar...</option>
-      <option value="Tratamento 1">Tratamento 1</option>
-      <option value="Tratamento 2">Tratamento 2</option>
-      <option value="Tratamento 3">Tratamento 3</option>
-    </select>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coleta de Dados</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Registro de Campo</h1>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0;">Parâmetros</h2>
+      <button id="btnBaixarRelatorio" style="width: auto; background-color: #28a745; padding: 5px 10px;">Relatório</button>
+    </div>
+
+    <form id="formMedicao">
+      <label for="turno">Turno:</label>
+      <select id="turno" required>
+        <option value="" disabled selected>Selecione o turno</option>
+        <option value="Manhã">Manhã</option>
+        <option value="Tarde">Tarde</option>
+      </select>
+
+      <div class="row">
+        <div>
+          <label for="tratamento">Tratamento:</label>
+          <select id="tratamento" required>
+            <option value="" disabled selected>Escolha</option>
+            <option value="Tratamento 1">Tratamento 1</option>
+            <option value="Tratamento 2">Tratamento 2</option>
+            <option value="Tratamento 3">Tratamento 3</option>
+          </select>
+        </div>
+        <div>
+          <label for="caixa">Caixa:</label>
+          <select id="caixa" required>
+            <option value="" disabled selected>Escolha</option>
+            <option value="Caixa 1">Caixa 1</option>
+            <option value="Caixa 2">Caixa 2</option>
+            <option value="Caixa 3">Caixa 3</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Amônia (mg/L):</label>
+      <input type="number" id="amonia" step="0.01" required>
+
+      <label>Nitrito (mg/L):</label>
+      <input type="number" id="nitrito" step="0.01" required>
+
+      <label>Alcalinidade:</label>
+      <input type="number" id="alcalinidade" step="0.01" required>
+
+      <label>Dureza:</label>
+      <input type="number" id="dureza" step="0.01" required>
+
+      <label>pH:</label>
+      <input type="number" id="ph" step="0.01" required>
+
+      <label>OD (mg/L):</label>
+      <input type="number" id="od" step="0.01" required>
+
+      <label>Temperatura (°C):</label>
+      <input type="number" id="temperatura" step="0.1" required>
+
+      <label>Condutividade (Opcional):</label>
+      <input type="number" id="condutividade" step="0.01">
+
+      <label>Salinidade (Opcional):</label>
+      <input type="number" id="salinidade" step="0.01">
+
+      <label>Sólidos Totais (Opcional):</label>
+      <input type="number" id="solidos" step="0.01">
+
+      <button type="submit" id="btnSalvarMedicao">Salvar Medição</button>
+    </form>
+
+    <button id="btnSair" style="background-color: #6c757d;">Sair do Sistema</button>
   </div>
-  <div>
-    <label for="caixa">Caixa/Repetição:*</label>
-    <select id="caixa" class="select-field" required>
-      <option value="" disabled selected>Selecionar...</option>
-      <option value="Caixa 1">Caixa 1</option>
-      <option value="Caixa 2">Caixa 2</option>
-      <option value="Caixa 3">Caixa 3</option>
-    </select>
-  </div>
-</div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

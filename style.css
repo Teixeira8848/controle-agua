@@ -1,107 +1,58 @@
-:root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --success-color: #28a745;
-  --danger-color: #dc3545;
-  --bg-color: #f4f7f6;
-  --card-bg: #ffffff;
-  --text-color: #333;
-}
-
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
   margin: 0;
-  padding: 10px;
+  padding: 0;
 }
 
 .container {
-  max-width: 500px; /* Ideal para celular */
+  max-width: 500px; /* Ajustado para ficar melhor no celular */
   margin: 20px auto;
   padding: 20px;
-  background-color: var(--card-bg);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-h1, h2, h3 {
-  text-align: center;
-  color: #222;
-}
-
-h3 {
-  font-size: 1.1rem;
-  border-bottom: 2px solid var(--primary-color);
-  padding-bottom: 5px;
-  margin-top: 20px;
-  text-align: left;
-}
-
-.form-section {
-  background: #fafafa;
-  padding: 15px;
+  background-color: #fff;
   border-radius: 8px;
-  margin-bottom: 15px;
-  border: 1px solid #eee;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+  text-align: center;
 }
 
 label {
   display: block;
-  margin-top: 10px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  margin-top: 15px;
+  font-weight: bold;
 }
 
 input, select, button {
+  display: block;
   width: 100%;
+  margin: 10px 0;
   padding: 12px;
-  margin-top: 5px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  box-sizing: border-box; /* Evita que o input saia da tela */
   font-size: 1rem;
-}
-
-input:focus, select:focus {
-  border-color: var(--primary-color);
-  outline: none;
-  box-shadow: 0 0 5px rgba(0,123,255,0.2);
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box; /* Garante que não ultrapasse a largura da tela */
 }
 
 button {
   cursor: pointer;
-  background-color: var(--primary-color);
-  color: white;
+  background-color: #007bff;
+  color: #fff;
   border: none;
   font-weight: bold;
-  transition: background 0.3s;
-  margin-top: 20px;
 }
 
 button:hover {
   background-color: #0056b3;
 }
 
-.btn-relatorio { background-color: var(--success-color); }
-.btn-relatorio:hover { background-color: #218838; }
-
-.btn-sair { background-color: var(--secondary-color); }
-
-.grid-selects {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
+/* Estilo para colocar Tratamento e Caixa lado a lado */
+.row {
+  display: flex;
+  gap: 10px;
 }
 
-.badge-info {
-  font-size: 0.8rem;
-  color: #666;
-  font-style: italic;
-}
-
-hr {
-  border: 0;
-  border-top: 1px solid #eee;
-  margin: 20px 0;
+.row div {
+  flex: 1;
 }
