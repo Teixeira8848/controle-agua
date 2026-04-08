@@ -45,7 +45,6 @@ async function carregarHistorico() {
     lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as últimas 20 coletas...</p>';
     
     try {
-        // Busca as últimas 20 medições cadastradas por qualquer pessoa
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(20));
         const snap = await getDocs(q);
         
@@ -59,7 +58,7 @@ async function carregarHistorico() {
             const d = doc.data();
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Monta um Cartão (Card) para cada medição
+            // Cartão com TODOS os parâmetros estruturados e adaptáveis para celular
             html += `
             <div class="card-historico">
                 <div class="card-header">
@@ -69,11 +68,17 @@ async function carregarHistorico() {
                 <p style="margin: 3px 0;"><strong>Turno:</strong> ${d.turno}</p>
                 <p style="margin: 3px 0;"><strong>Coletor:</strong> ${d.coletor}</p>
                 
-                <div class="card-resumo">
-                    <span style="flex: 1; text-align: center; color: #d9534f; font-size: 0.8rem;"><strong>NH3:</strong><br>${d.amonia || '-'}</span>
-                    <span style="flex: 1; text-align: center; color: #5cb85c; font-size: 0.8rem;"><strong>pH:</strong><br>${d.ph || '-'}</span>
-                    <span style="flex: 1; text-align: center; color: #17a2b8; font-size: 0.8rem;"><strong>Temp:</strong><br>${d.temperatura || '-'}</span>
-                    <span style="flex: 1; text-align: center; color: #f0ad4e; font-size: 0.8rem;"><strong>OD:</strong><br>${d.od || '-'}</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #eee;">
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Amônia:</strong><br>${d.amonia || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Nitrito:</strong><br>${d.nitrito || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>pH:</strong><br>${d.ph || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Temp:</strong><br>${d.temperatura || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>OD:</strong><br>${d.od || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Alcalinidade:</strong><br>${d.alcalinidade || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Dureza:</strong><br>${d.dureza || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Condutiv.:</strong><br>${d.condutividade || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Salinidade:</strong><br>${d.salinidade || '-'}</span>
+                    <span style="flex: 1 1 100%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Sólidos Totais:</strong><br>${d.solidos || '-'}</span>
                 </div>
             </div>
             `;
@@ -141,7 +146,7 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // CADASTRO E ATUALIZAR PERFIL...
+    // CADASTRO
     if (e.target.id === 'btnSalvarCadastro') {
         const nomeEl = document.getElementById("nomeCadastro");
         if (!nomeEl || !nomeEl.value) return alert("Digite seu nome!");
@@ -152,6 +157,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao salvar: " + err.message); }
     }
 
+    // ATUALIZAR PERFIL
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
         if (!novoNome) return alert("O nome não pode ser vazio.");
@@ -203,7 +209,6 @@ document.addEventListener('click', async (e) => {
         document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
         document.getElementById("tabPerfil").style.backgroundColor = "#6c757d";
         
-        // Quando clica na aba, carrega os dados automaticamente
         carregarHistorico();
     }
 
@@ -221,6 +226,7 @@ document.addEventListener('click', async (e) => {
         carregarHistorico();
     }
 
+    // LOGOUT
     if (e.target.id === 'btnSair') {
         await signOut(auth);
         window.location.reload();
