@@ -56,10 +56,9 @@ async function carregarHistorico() {
         let html = "";
         snap.forEach(doc => {
             const d = doc.data();
-            const idDoc = doc.id; // Pega o ID único do documento no Firebase
+            const idDoc = doc.id;
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Adicionado o botão de lixeira no cabeçalho do cartão com o atributo data-id
             html += `
             <div class="card-historico" id="card-${idDoc}">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
@@ -172,17 +171,14 @@ document.addEventListener('click', async (e) => {
     }
 
     // ==============================================
-    // LÓGICA DE EXCLUSÃO (NOVIDADE)
+    // LÓGICA DE EXCLUSÃO
     // ==============================================
     const btnExcluir = e.target.closest('.btn-excluir');
     if (btnExcluir) {
         const idDoc = btnExcluir.getAttribute('data-id');
-        
-        // Pede confirmação para evitar exclusão por acidente
         if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
             try {
                 await deleteDoc(doc(db, "medicoes", idDoc));
-                // Remove o cartão da tela visualmente ou recarrega a lista
                 carregarHistorico(); 
                 alert("Registro apagado com sucesso!");
             } catch (err) {
@@ -192,7 +188,7 @@ document.addEventListener('click', async (e) => {
     }
 
     // ==============================================
-    // GERAÇÃO DO RELATÓRIO
+    // GERAÇÃO DO RELATÓRIO (REPETINDO A DATA E HORA)
     // ==============================================
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
@@ -214,6 +210,8 @@ document.addEventListener('click', async (e) => {
                 if (!gruposMap[chaveGrupo]) {
                     const novoGrupo = {
                         dataStr: dataStr,
+                        // Vamos guardar a primeira hora formatada que encontrarmos para esse bloco
+                        horaBaseFormata: `${dataStr} ${dt.toLocaleTimeString().substring(0,5)}`,
                         turno: turno,
                         ordem: dt.getTime(), 
                         medicoes: {}
@@ -249,11 +247,13 @@ document.addEventListener('click', async (e) => {
                     const chave = `${caixaAlvo.t}_${caixaAlvo.c}`;
                     const med = grupo.medicoes[chave];
 
+                    // Usa a hora base do grupo para todas as linhas (medidas ou vazias)
+                    const horaParaUsar = med ? `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}` : grupo.horaBaseFormata;
+
                     if (med) {
-                        const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}`;
-                        csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
+                        csv += `${horaParaUsar};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
                     } else {
-                        csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
+                        csv += `${horaParaUsar};${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
 
