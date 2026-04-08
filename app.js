@@ -19,76 +19,83 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 let dadosUsuarioLocal = null;
-let processandoLogin = false; // Trava para o Safari
+let aguardandoFirebase = true; // TRAVA DE SEGURANÇA MESTRE
 
-// --- AJUSTE PARA SAFARI: Captura o resultado IMEDIATAMENTE ---
-if (window.location.pathname.endsWith("index.html") || window.location.pathname === "/") {
-    processandoLogin = true; // Avisa ao sistema para não redirecionar ainda
-    getRedirectResult(auth)
-        .then((result) => {
-            processandoLogin = false;
-            if (result?.user) {
-                console.log("Safari: Login recuperado com sucesso!");
-            }
-        })
-        .catch((error) => {
-            processandoLogin = false;
-            console.error("Erro no Safari Redirect:", error);
-        });
+// 2. LÓGICA DE INICIALIZAÇÃO PARA SAFARI
+async function inicializarAuth() {
+    try {
+        // Força a persistência local antes de qualquer coisa
+        await setPersistence(auth, browserLocalPersistence);
+        
+        // Tenta capturar o resultado do redirect (se houver)
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+            console.log("Login via Redirect recuperado!");
+        }
+    } catch (error) {
+        console.error("Erro na inicialização da Auth:", error);
+    } finally {
+        // Libera o sistema para verificar o estado do usuário
+        aguardandoFirebase = false;
+        verificarRotas();
+    }
 }
 
-// 2. GERENCIADOR DE ROTAS
-onAuthStateChanged(auth, async (user) => {
-  const path = window.location.pathname;
-  
-  if (user) {
-    const docRef = doc(db, "usuarios", user.uid);
-    try {
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        dadosUsuarioLocal = docSnap.data();
-        if (document.getElementById("userNameHeader")) {
-          atualizarUIPerfil(user, dadosUsuarioLocal);
+// 3. GERENCIADOR DE ROTAS (Executado após a trava ser liberada)
+function verificarRotas() {
+    onAuthStateChanged(auth, async (user) => {
+        const path = window.location.pathname;
+        
+        if (user) {
+            // USUÁRIO LOGADO
+            const docRef = doc(db, "usuarios", user.uid);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                dadosUsuarioLocal = docSnap.data();
+                if (document.getElementById("userNameHeader")) {
+                    atualizarUIPerfil(user, dadosUsuarioLocal);
+                }
+                if (path.endsWith("index.html") || path === "/") {
+                    window.location.href = "app.html";
+                }
+            } else if (!path.endsWith("cadastro.html")) {
+                window.location.href = "cadastro.html";
+            }
+        } else {
+            // USUÁRIO DESLOGADO
+            // Só redireciona se tiver certeza que não está processando nada
+            if (!aguardandoFirebase && !path.endsWith("index.html") && path !== "/") {
+                window.location.href = "index.html";
+            }
         }
-        if (path.endsWith("index.html") || path === "/") {
-          window.location.href = "app.html";
-        }
-      } else if (!path.endsWith("cadastro.html")) {
-        window.location.href = "cadastro.html";
-      }
-    } catch (e) { console.error("Erro Firestore:", e); }
-  } else {
-    // Só redireciona se NÃO estiver processando um login do Safari
-    if (!path.endsWith("index.html") && path !== "/" && !processandoLogin) {
-       setTimeout(() => {
-           if (!auth.currentUser) window.location.href = "index.html";
-       }, 4000); // Aumentado para 4s para o Safari
-    }
-  }
-});
+    });
+}
 
-// 3. BOTÃO DE LOGIN
+// Inicia o processo
+inicializarAuth();
+
+// 4. BOTÃO DE LOGIN
 const btnLogin = document.getElementById("loginGoogleBtn");
 if (btnLogin) {
   btnLogin.addEventListener("click", async () => {
     try {
       btnLogin.innerText = "Conectando...";
-      await setPersistence(auth, browserLocalPersistence);
       
-      // Detecção de Mobile
+      // Se for iPhone/iPad/Android, usa Redirect. Se for PC, usa Popup.
       if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         await signInWithRedirect(auth, provider);
       } else {
         await signInWithPopup(auth, provider);
       }
     } catch (error) {
-      alert("Erro ao logar. Se estiver no iPhone, use o Safari fora de outros apps.");
+      alert("Erro ao logar. Tente abrir no navegador Chrome ou Safari diretamente.");
       btnLogin.innerText = "Entrar com Google";
     }
   });
 }
 
-// 4. CADASTRO INICIAL
+// 5. CADASTRO INICIAL
 const btnSalvar = document.getElementById("btnSalvar");
 if (btnSalvar) {
   btnSalvar.addEventListener("click", async (e) => {
@@ -105,7 +112,7 @@ if (btnSalvar) {
   });
 }
 
-// 5. INTERFACE DO APP
+// 6. INTERFACE DO APP (PERFIL E ABAS)
 function atualizarUIPerfil(user, dados) {
     if (document.getElementById("userNameHeader")) document.getElementById("userNameHeader").innerText = dados.nome;
     if (document.getElementById("userEmailHeader")) document.getElementById("userEmailHeader").innerText = user.email;
@@ -146,7 +153,7 @@ document.getElementById("btnAtualizarPerfil")?.addEventListener("click", async (
     } catch (e) { alert("Erro ao atualizar."); }
 });
 
-// 6. SALVAR MEDIÇÃO
+// 7. SALVAR MEDIÇÃO
 const formMedicao = document.getElementById("formMedicao");
 if (formMedicao) {
   formMedicao.onsubmit = async (e) => {
@@ -171,7 +178,7 @@ if (formMedicao) {
     };
     try {
       await addDoc(collection(db, "medicoes"), dados);
-      alert("Salvo!");
+      alert("Salvo com sucesso!");
       document.getElementById("tratamento").value = "";
       document.getElementById("caixa").value = "";
     } catch (err) { alert("Erro ao salvar."); }
@@ -179,7 +186,7 @@ if (formMedicao) {
   };
 }
 
-// 7. RELATÓRIO CSV
+// 8. RELATÓRIO CSV
 document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async () => {
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"));
@@ -198,7 +205,7 @@ document.getElementById("btnBaixarRelatorio")?.addEventListener("click", async (
     } catch (e) { alert("Erro no relatório."); }
 });
 
-// 8. LOGOUT
+// 9. LOGOUT
 const btnSair = document.getElementById("btnSair");
 if (btnSair) {
     btnSair.onclick = () => signOut(auth).then(() => window.location.href = "index.html");
