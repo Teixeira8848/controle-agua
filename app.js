@@ -58,7 +58,6 @@ async function carregarHistorico() {
             const d = doc.data();
             const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
             
-            // Cartão com TODOS os parâmetros estruturados e adaptáveis para celular
             html += `
             <div class="card-historico">
                 <div class="card-header">
@@ -128,7 +127,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE
+// EVENTOS DE CLIQUE E GERAÇÃO DE PLANILHA
 // ==========================================
 document.addEventListener('click', async (e) => {
     
@@ -169,17 +168,27 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro ao atualizar: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // PLANILHA (CSV)
+    // PLANILHA (CSV FORMATADO PARA EXCEL BRASILEIRO)
     if (e.target.id === 'btnBaixarRelatorio') {
         e.target.innerText = "Gerando...";
         try {
             const snap = await getDocs(query(collection(db, "medicoes"), orderBy("timestamp", "desc")));
-            let csv = "\ufeffData,Hora,Turno,Coletor,Tratamento,Caixa,Amonia,Nitrito,Alcalinidade,Dureza,pH,OD,Temperatura,Condutividade,Salinidade,Solidos\n";
+            
+            // Cabeçalho atualizado usando ponto e vírgula (;)
+            let csv = "\ufeffData e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
+            
+            // Função para trocar ponto por vírgula nos números
+            const formatarNumero = (num) => (num !== null && num !== undefined) ? String(num).replace('.', ',') : "";
+
             snap.forEach(doc => {
                 const d = doc.data();
                 const dt = d.timestamp ? d.timestamp.toDate() : new Date();
-                csv += `${dt.toLocaleDateString()},${dt.toLocaleTimeString()},${d.turno},${d.coletor},${d.tratamento},${d.caixa},${d.amonia??""},${d.nitrito??""},${d.alcalinidade??""},${d.dureza??""},${d.ph??""},${d.od??""},${d.temperatura??""},${d.condutividade??""},${d.salinidade??""},${d.solidos??""}\n`;
+                const dataHoraFormata = `${dt.toLocaleDateString()} ${dt.toLocaleTimeString()}`;
+                
+                // Monta a linha com ponto e vírgula e números com vírgula decimal
+                csv += `${dataHoraFormata};${d.turno};${d.tratamento};${d.caixa};${formatarNumero(d.amonia)};${formatarNumero(d.nitrito)};${formatarNumero(d.alcalinidade)};${formatarNumero(d.dureza)};${formatarNumero(d.ph)};${formatarNumero(d.od)};${formatarNumero(d.temperatura)};${formatarNumero(d.condutividade)};${formatarNumero(d.salinidade)};${formatarNumero(d.solidos)};${d.coletor}\n`;
             });
+
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -189,9 +198,7 @@ document.addEventListener('click', async (e) => {
         finally { e.target.innerText = "📥 Planilha"; }
     }
 
-    // ==========================================
     // CONTROLE DAS 3 ABAS
-    // ==========================================
     if (e.target.id === 'tabRegistro') {
         document.getElementById("secaoRegistro").style.display = "block";
         document.getElementById("secaoHistorico").style.display = "none";
@@ -208,7 +215,6 @@ document.addEventListener('click', async (e) => {
         document.getElementById("tabHistorico").style.backgroundColor = "#007bff";
         document.getElementById("tabRegistro").style.backgroundColor = "#6c757d";
         document.getElementById("tabPerfil").style.backgroundColor = "#6c757d";
-        
         carregarHistorico();
     }
 
