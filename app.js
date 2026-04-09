@@ -3,11 +3,13 @@ import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // ==========================================
-// 👑 PROTEÇÃO DO FUNDADOR DO SISTEMA 👑
-// Coloque o seu e-mail do Google exatamente como você loga.
-// Ninguém poderá remover o seu acesso de Admin!
+// 👑 PROTEÇÃO DOS FUNDADORES DO SISTEMA 👑
+// Coloque os e-mails separados por vírgula e entre aspas.
 // ==========================================
-const EMAIL_DO_DONO = "willyam.rodrigo6@gmail.com";"willyamrodrigo6@gmail.com" // <-- ALTERE PARA O SEU E-MAIL REAL AQUI!
+const EMAILS_DOS_DONOS = [
+    "willyam.rodrigo6@gmail.com",    // <-- Coloque o seu e-mail aqui
+    "willyamrodrigo6@gmail.com" // <-- Coloque o segundo e-mail aqui
+]; 
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRLrik-rHVfDNz_gn2P4oYgraM64iHI0k",
@@ -120,7 +122,7 @@ async function carregarHistorico() {
 }
 
 // ==========================================
-// FUNÇÃO PAINEL ADMIN (COM PROTEÇÃO DO DONO)
+// FUNÇÃO PAINEL ADMIN (VERIFICA LISTA VIP)
 // ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
@@ -137,12 +139,13 @@ async function carregarListaUsuarios() {
             const uId = docSnap.id;
             
             const isEuMesmo = (uId === auth.currentUser.uid);
-            const isDonoDoApp = (u.email === EMAIL_DO_DONO); // Checa se é o email sagrado
+            
+            // A mágica acontece aqui: verifica se o email está dentro da lista EMAILS_DOS_DONOS
+            const isDonoDoApp = EMAILS_DOS_DONOS.includes(u.email); 
             
             let btnAcao = "";
             
             if (isDonoDoApp) {
-                // Se for a conta do dono, ganha um selo especial e não tem botão de remover
                 btnAcao = `<span style="font-size: 0.85rem; color: #ffc107; background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">👑 Fundador</span>`;
             } else if (isEuMesmo) {
                 btnAcao = `<span style="font-size: 0.8rem; color: #28a745; font-weight: bold;">(Você)</span>`;
@@ -327,7 +330,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // ABRIR JANELA DE EDIÇÃO
+    // ABRIR JANELA DE EDIÇÃO (LÁPIS)
     const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
         if (!isAdmin) return alert("Acesso negado.");
@@ -547,7 +550,7 @@ document.addEventListener('submit', async (e) => {
         }
     }
 
-    // SALVAR EDIÇÃO DE UMA MEDIÇÃO
+    // SALVAR EDIÇÃO DE UMA MEDIÇÃO (NOVO)
     if (e.target.id === 'formEditarMedicao') {
         e.preventDefault();
         if (!isAdmin) return alert("Acesso negado.");
