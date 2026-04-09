@@ -44,7 +44,7 @@ const setEditVal = (id, val) => {
 };
 
 // ==========================================
-// FUNÇÃO HISTÓRICO
+// FUNÇÃO HISTÓRICO E PAINEL ADMIN
 // ==========================================
 async function carregarHistorico() {
     const lista = document.getElementById("listaHistorico");
@@ -112,9 +112,6 @@ async function carregarHistorico() {
     }
 }
 
-// ==========================================
-// FUNÇÃO PAINEL ADMIN 
-// ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
     if (!listaUsuarios || !isAdmin) return;
@@ -149,7 +146,6 @@ async function carregarListaUsuarios() {
             </div>
             `;
         });
-        
         listaUsuarios.innerHTML = html;
     } catch (err) {
         console.error(err);
@@ -186,16 +182,13 @@ onAuthStateChanged(auth, async (user) => {
                 if (isAdmin) {
                     const btnPlanilha = document.getElementById("btnBaixarRelatorio");
                     if (btnPlanilha) btnPlanilha.style.display = "block";
-                    
                     const badge = document.getElementById("badgeAdmin");
                     if (badge) badge.style.display = "block";
-                    
                     const tabAdmin = document.getElementById("tabAdmin");
                     if (tabAdmin) tabAdmin.style.display = "block";
                 } else {
                     const btnPlanilha = document.getElementById("btnBaixarRelatorio");
                     if (btnPlanilha) btnPlanilha.style.display = "none";
-                    
                     const tabAdmin = document.getElementById("tabAdmin");
                     if (tabAdmin) tabAdmin.style.display = "none";
                 }
@@ -220,11 +213,56 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE GERAIS
+// RADAR DE DUPLICIDADE (NOVIDADE)
+// ==========================================
+// Este evento "escuta" qualquer mudança nas caixas de Turno, Tratamento ou Caixa
+document.addEventListener('change', async (e) => {
+    if (e.target.id === 'turno' || e.target.id === 'tratamento' || e.target.id === 'caixa') {
+        const turno = document.getElementById("turno").value;
+        const tratamento = document.getElementById("tratamento").value;
+        const caixa = document.getElementById("caixa").value;
+        const aviso = document.getElementById("avisoDuplicidade");
+
+        // Só verifica se as 3 caixinhas já estiverem preenchidas
+        if (turno && tratamento && caixa) {
+            try {
+                // Busca as últimas 30 medições (suficiente para cobrir o dia todo sem gastar muitas leituras)
+                const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(30));
+                const snap = await getDocs(q);
+
+                const hojeStr = new Date().toLocaleDateString();
+                let duplicado = false;
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    if (d.timestamp) {
+                        const docDataStr = d.timestamp.toDate().toLocaleDateString();
+                        // Se a data, o turno, o tratamento e a caixa baterem, aciona o radar!
+                        if (docDataStr === hojeStr && d.turno === turno && d.tratamento === tratamento && d.caixa === caixa) {
+                            duplicado = true;
+                        }
+                    }
+                });
+
+                if (duplicado) {
+                    aviso.style.display = "block";
+                } else {
+                    aviso.style.display = "none";
+                }
+            } catch (err) {
+                console.error("Erro no radar de duplicidade:", err);
+            }
+        } else {
+            aviso.style.display = "none"; // Se faltar preencher alguma, o aviso some
+        }
+    }
+});
+
+// ==========================================
+// EVENTOS DE CLIQUE GERAIS E PLANILHA
 // ==========================================
 document.addEventListener('click', async (e) => {
     
-    // LOGIN E CADASTRO
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Aguarde...";
         try {
@@ -262,13 +300,11 @@ document.addEventListener('click', async (e) => {
     const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
         if (!isAdmin) return alert("Acesso negado.");
-        
         const modal = document.getElementById("modalEditar");
-        if (!modal) return alert("A Janela de Edição não foi encontrada. Você esqueceu de atualizar o arquivo index.html!");
+        if (!modal) return alert("Erro no HTML da janela modal.");
 
         const idDoc = btnEditar.getAttribute('data-id');
         const d = registrosAtuais[idDoc]; 
-        
         if (!d) return alert("Erro ao recuperar dados da medição.");
 
         document.getElementById("editIdDoc").value = idDoc;
@@ -351,7 +387,6 @@ document.addEventListener('click', async (e) => {
                 }
             }
         });
-
         if (e.target.id === 'tabHistorico') carregarHistorico();
         if (e.target.id === 'tabAdmin') carregarListaUsuarios();
     }
@@ -459,6 +494,9 @@ document.addEventListener('submit', async (e) => {
             });
             alert("Medição salva com sucesso!");
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
+            
+            // Oculta o aviso vermelho caso estivesse aceso
+            document.getElementById("avisoDuplicidade").style.display = "none";
         } catch (err) { 
             alert("Erro ao salvar: " + err.message); 
         } finally { 
@@ -466,7 +504,7 @@ document.addEventListener('submit', async (e) => {
         }
     }
 
-    // SALVAR EDIÇÃO DE UMA MEDIÇÃO (NOVO)
+    // SALVAR EDIÇÃO DE UMA MEDIÇÃO
     if (e.target.id === 'formEditarMedicao') {
         e.preventDefault();
         if (!isAdmin) return alert("Acesso negado.");
