@@ -6,7 +6,7 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 // 👑 PROTEÇÃO DOS FUNDADORES DO SISTEMA 👑
 // ==========================================
 const EMAILS_DOS_DONOS = [
-    "willyamrodrigo6@gmail.com","willyamrodrigo6@gmail.com" // <- Seu e-mail sagrado
+    "willyamrodrigo6@gmail.com","willyam.rodrigo6@gmail.com" // <- Seu e-mail sagrado
 ]; 
 
 const firebaseConfig = {
