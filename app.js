@@ -213,20 +213,20 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// RADAR DE DUPLICIDADE (NOVIDADE)
+// RADAR DE DUPLICIDADE (BLINDADO)
 // ==========================================
-// Este evento "escuta" qualquer mudança nas caixas de Turno, Tratamento ou Caixa
 document.addEventListener('change', async (e) => {
     if (e.target.id === 'turno' || e.target.id === 'tratamento' || e.target.id === 'caixa') {
-        const turno = document.getElementById("turno").value;
-        const tratamento = document.getElementById("tratamento").value;
-        const caixa = document.getElementById("caixa").value;
+        const turnoEl = document.getElementById("turno");
+        const tratamentoEl = document.getElementById("tratamento");
+        const caixaEl = document.getElementById("caixa");
         const aviso = document.getElementById("avisoDuplicidade");
 
-        // Só verifica se as 3 caixinhas já estiverem preenchidas
-        if (turno && tratamento && caixa) {
+        // Se faltar a div de aviso, o radar cancela a busca para não dar erro
+        if (!aviso) return; 
+
+        if (turnoEl && tratamentoEl && caixaEl && turnoEl.value && tratamentoEl.value && caixaEl.value) {
             try {
-                // Busca as últimas 30 medições (suficiente para cobrir o dia todo sem gastar muitas leituras)
                 const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(30));
                 const snap = await getDocs(q);
 
@@ -237,23 +237,20 @@ document.addEventListener('change', async (e) => {
                     const d = doc.data();
                     if (d.timestamp) {
                         const docDataStr = d.timestamp.toDate().toLocaleDateString();
-                        // Se a data, o turno, o tratamento e a caixa baterem, aciona o radar!
-                        if (docDataStr === hojeStr && d.turno === turno && d.tratamento === tratamento && d.caixa === caixa) {
+                        if (docDataStr === hojeStr && d.turno === turnoEl.value && d.tratamento === tratamentoEl.value && d.caixa === caixaEl.value) {
                             duplicado = true;
                         }
                     }
                 });
 
-                if (duplicado) {
-                    aviso.style.display = "block";
-                } else {
-                    aviso.style.display = "none";
-                }
+                if (duplicado) aviso.style.display = "block";
+                else aviso.style.display = "none";
+                
             } catch (err) {
-                console.error("Erro no radar de duplicidade:", err);
+                console.error("Erro no radar:", err);
             }
         } else {
-            aviso.style.display = "none"; // Se faltar preencher alguma, o aviso some
+            if(aviso) aviso.style.display = "none";
         }
     }
 });
@@ -296,7 +293,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // ABRIR JANELA DE EDIÇÃO (LÁPIS)
+    // ABRIR JANELA DE EDIÇÃO
     const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
         if (!isAdmin) return alert("Acesso negado.");
@@ -463,11 +460,10 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// SALVAR OU EDITAR MEDIÇÃO
+// SALVAR OU EDITAR MEDIÇÃO (BLINDADO)
 // ==========================================
 document.addEventListener('submit', async (e) => {
     
-    // SALVAR NOVA MEDIÇÃO
     if (e.target.id === 'formMedicao') {
         e.preventDefault();
         const btn = document.getElementById("btnSalvarMedicao");
@@ -495,8 +491,10 @@ document.addEventListener('submit', async (e) => {
             alert("Medição salva com sucesso!");
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
             
-            // Oculta o aviso vermelho caso estivesse aceso
-            document.getElementById("avisoDuplicidade").style.display = "none";
+            // Oculta o aviso vermelho caso estivesse aceso, checando se a div existe
+            const aviso = document.getElementById("avisoDuplicidade");
+            if (aviso) aviso.style.display = "none";
+
         } catch (err) { 
             alert("Erro ao salvar: " + err.message); 
         } finally { 
@@ -504,7 +502,6 @@ document.addEventListener('submit', async (e) => {
         }
     }
 
-    // SALVAR EDIÇÃO DE UMA MEDIÇÃO
     if (e.target.id === 'formEditarMedicao') {
         e.preventDefault();
         if (!isAdmin) return alert("Acesso negado.");
@@ -535,7 +532,10 @@ document.addEventListener('submit', async (e) => {
                 solidos: getEditVal("editSolidos")
             });
             alert("Registro atualizado com sucesso!");
-            document.getElementById("modalEditar").style.display = "none";
+            
+            const modal = document.getElementById("modalEditar");
+            if (modal) modal.style.display = "none";
+            
             carregarHistorico(); 
         } catch (err) {
             alert("Erro ao editar: " + err.message);
