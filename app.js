@@ -1,13 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// ==========================================
-// PROTECAO DOS FUNDADORES DO SISTEMA
-// ==========================================
 const EMAILS_DOS_DONOS = [
-    "willyamrodrigo6@gmail.com", 
-    "willyam.rodrigo6@gmail.com"
+    "willyamrodrigo6@gmail.com"
 ]; 
 
 const firebaseConfig = {
@@ -34,9 +30,6 @@ function resetarDataParaHoje() {
     if(dataColetaEl) dataColetaEl.value = localISOTime;
 }
 
-// ==========================================
-// FUNCOES DE INTERFACE E CONTROLE DE CAMPOS
-// ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
     const alvo = document.getElementById(id);
@@ -79,9 +72,6 @@ function toggleCampos(liberar) {
     }
 }
 
-// ==========================================
-// FUNCAO HISTORICO
-// ==========================================
 async function carregarHistorico() {
     const lista = document.getElementById("listaHistorico");
     if (!lista) return;
@@ -153,9 +143,6 @@ async function carregarHistorico() {
     }
 }
 
-// ==========================================
-// FUNCAO PAINEL ADMIN 
-// ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
     if (!listaUsuarios || !isAdmin) return;
@@ -202,9 +189,6 @@ async function carregarListaUsuarios() {
     }
 }
 
-// ==========================================
-// MONITOR DE AUTENTICACAO
-// ==========================================
 let timeoutFirebase = setTimeout(() => { mostrarTela("telaLogin"); }, 5000);
 
 onAuthStateChanged(auth, async (user) => {
@@ -244,28 +228,30 @@ onAuthStateChanged(auth, async (user) => {
 
                 resetarDataParaHoje(); 
                 
-                const btnLogin = document.getElementById('loginGoogleBtn');
-                if (btnLogin) btnLogin.innerText = "Entrar com Google";
+                const btnLoginGoogle = document.getElementById('loginGoogleBtn');
+                if (btnLoginGoogle) btnLoginGoogle.innerText = "Entrar com Google";
+                
+                const btnLoginEmail = document.getElementById('loginEmailBtn');
+                if (btnLoginEmail) btnLoginEmail.innerText = "Entrar no Sistema";
 
                 mostrarTela("telaApp");
             } else {
                 mostrarTela("telaCadastro");
             }
         } catch (e) {
-            const btnLogin = document.getElementById('loginGoogleBtn');
-            if (btnLogin) btnLogin.innerText = "Entrar com Google";
             mostrarTela("telaLogin");
         }
     } else {
-        const btnLogin = document.getElementById('loginGoogleBtn');
-        if (btnLogin) btnLogin.innerText = "Entrar com Google";
+        const btnLoginGoogle = document.getElementById('loginGoogleBtn');
+        if (btnLoginGoogle) btnLoginGoogle.innerText = "Entrar com Google";
+        
+        const btnLoginEmail = document.getElementById('loginEmailBtn');
+        if (btnLoginEmail) btnLoginEmail.innerText = "Entrar no Sistema";
+        
         mostrarTela("telaLogin");
     }
 });
 
-// ==========================================
-// RADAR DE DUPLICIDADE
-// ==========================================
 async function verificarDuplicidade() {
     const dataVal = document.getElementById("dataColeta")?.value;
     const turnoVal = document.getElementById("turno")?.value;
@@ -324,11 +310,29 @@ document.addEventListener('change', (e) => {
     }
 });
 
-// ==========================================
-// EVENTOS DE CLIQUE E GERACAO DA PLANILHA
-// ==========================================
 document.addEventListener('click', async (e) => {
     
+    // NOVO EVENTO: LOGIN COM EMAIL E SENHA
+    if (e.target.id === 'loginEmailBtn') {
+        const emailVal = document.getElementById("emailLogin").value;
+        const senhaVal = document.getElementById("senhaLogin").value;
+        
+        if (!emailVal || !senhaVal) return alert("Por favor, preencha o e-mail e a senha.");
+
+        e.target.innerText = "Aguarde...";
+        try {
+            await setPersistence(auth, browserLocalPersistence);
+            await signInWithEmailAndPassword(auth, emailVal, senhaVal);
+        } catch (err) {
+            e.target.innerText = "Entrar no Sistema";
+            if (err.code === 'auth/invalid-credential') {
+                alert("E-mail ou senha incorretos.");
+            } else {
+                alert("Falha no login: " + err.message);
+            }
+        }
+    }
+
     if (e.target.id === 'loginGoogleBtn') {
         e.target.innerText = "Aguarde...";
         try {
@@ -549,11 +553,7 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// ==========================================
-// SALVAR OU EDITAR MEDICAO
-// ==========================================
 document.addEventListener('submit', async (e) => {
-    
     if (e.target.id === 'formMedicao') {
         e.preventDefault();
         
