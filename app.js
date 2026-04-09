@@ -4,9 +4,11 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 
 // ==========================================
 // 👑 PROTEÇÃO DOS FUNDADORES DO SISTEMA 👑
+// Cuidado ao alterar: nunca apague as aspas ("") nem a vírgula (,).
 // ==========================================
 const EMAILS_DOS_DONOS = [
-    "willyamrodrigo6@gmail.com","willyam.rodrigo6@gmail.com" // <- Seu e-mail sagrado
+    "willyamrodrigo6@gmail.com", 
+    "willyam.rodrigo6@gmail.com"
 ]; 
 
 const firebaseConfig = {
@@ -50,7 +52,6 @@ const setEditVal = (id, val) => {
     if (el) el.value = (val !== null && val !== undefined) ? val : "";
 };
 
-// Função para Travar/Destravar os inputs de parâmetros
 function toggleCampos(liberar) {
     const area = document.getElementById("areaParametros");
     const inputs = document.querySelectorAll("#areaParametros input");
@@ -142,7 +143,7 @@ async function carregarHistorico() {
 }
 
 // ==========================================
-// FUNÇÃO PAINEL ADMIN
+// FUNÇÃO PAINEL ADMIN (VERIFICA LISTA VIP)
 // ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
@@ -159,6 +160,8 @@ async function carregarListaUsuarios() {
             const uId = docSnap.id;
             
             const isEuMesmo = (uId === auth.currentUser.uid);
+            
+            // A mágica acontece aqui: verifica se o email está na lista de Fundadores
             const isDonoDoApp = EMAILS_DOS_DONOS.includes(u.email); 
             
             let btnAcao = "";
@@ -250,7 +253,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// RADAR DE DUPLICIDADE E LIBERAÇÃO DE CAMPOS
+// RADAR DE DUPLICIDADE (BLOQUEIA O BOTAO E CAMPOS)
 // ==========================================
 async function verificarDuplicidade() {
     const turnoVal = document.getElementById("turno")?.value;
@@ -261,7 +264,6 @@ async function verificarDuplicidade() {
 
     if (!aviso || !btnSalvar) return;
 
-    // Se faltar alguma das três informações primárias, mantém os campos bloqueados e o aviso escondido
     if (!turnoVal || !tratamentoVal || !caixaVal) {
         aviso.style.display = "none";
         toggleCampos(false); 
@@ -269,7 +271,6 @@ async function verificarDuplicidade() {
         return;
     }
 
-    // Se os três foram escolhidos, vamos checar no banco (comparação de data à prova de falhas)
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(40));
         const snap = await getDocs(q);
@@ -281,7 +282,6 @@ async function verificarDuplicidade() {
             const d = doc.data();
             if (d.timestamp) {
                 const dataDoc = d.timestamp.toDate();
-                // Verifica dia, mês, ano, turno, tratamento e caixa
                 if (dataDoc.getDate() === hoje.getDate() &&
                     dataDoc.getMonth() === hoje.getMonth() &&
                     dataDoc.getFullYear() === hoje.getFullYear() &&
@@ -294,12 +294,10 @@ async function verificarDuplicidade() {
         });
 
         if (duplicado) {
-            // Acende o vermelho, bloqueia os inputs e o botão
             aviso.style.display = "block";
             toggleCampos(false);
             btnSalvar.innerText = "Combinação já registrada!";
         } else {
-            // Tudo limpo! Libera os campos para digitar e esconde o aviso
             aviso.style.display = "none";
             toggleCampos(true);
         }
@@ -309,7 +307,6 @@ async function verificarDuplicidade() {
     }
 }
 
-// Escuta qualquer mudança nas caixas para ativar a lógica
 document.addEventListener('change', (e) => {
     if (e.target.id === 'turno' || e.target.id === 'tratamento' || e.target.id === 'caixa') {
         verificarDuplicidade();
@@ -531,6 +528,7 @@ document.addEventListener('submit', async (e) => {
         
         const btn = document.getElementById("btnSalvarMedicao");
         if(btn && btn.disabled) return;
+        
         if(btn) btn.disabled = true;
         
         try {
@@ -560,14 +558,10 @@ document.addEventListener('submit', async (e) => {
             document.getElementById("tratamento").value = "";
             document.getElementById("caixa").value = "";
             
-            // Trava os campos novamente
+            // Trava os campos novamente e esconde o aviso
             toggleCampos(false);
-            
-            // Esconde aviso
             const aviso = document.getElementById("avisoDuplicidade");
             if (aviso) aviso.style.display = "none";
-            
-            // Reseta botão
             if(btn) btn.innerText = "Preencha Turno, Tratamento e Caixa";
 
         } catch (err) { 
