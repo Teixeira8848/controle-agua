@@ -27,6 +27,14 @@ const provider = new GoogleAuthProvider();
 let isAdmin = false; 
 let registrosAtuais = {}; 
 
+// Preenche automaticamente o campo Data com o dia de hoje
+function resetarDataParaHoje() {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+    const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
+    const dataColetaEl = document.getElementById("dataColeta");
+    if(dataColetaEl) dataColetaEl.value = localISOTime;
+}
+
 // ==========================================
 // FUNÇÕES DE INTERFACE E CONTROLE DE CAMPOS
 // ==========================================
@@ -97,7 +105,13 @@ async function carregarHistorico() {
             const idDoc = doc.id;
             registrosAtuais[idDoc] = d; 
             
-            const dataHora = d.timestamp ? d.timestamp.toDate().toLocaleString('pt-BR').substring(0, 16) : "Sem data";
+            // Lógica para pegar a data real informada ou a do sistema (se for registro velho)
+            let dataExibicao = "Sem data";
+            if (d.dataColeta) {
+                dataExibicao = d.dataColeta.split('-').reverse().join('/'); // Transforma YYYY-MM-DD em DD/MM/YYYY
+            } else if (d.timestamp) {
+                dataExibicao = d.timestamp.toDate().toLocaleDateString('pt-BR');
+            }
             
             let botoesAdmin = "";
             if (isAdmin) {
@@ -112,7 +126,7 @@ async function carregarHistorico() {
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>${d.tratamento} - ${d.caixa}</span>
                     <div style="display: flex; align-items: center; gap: 5px;">
-                        <span style="color: #007bff; margin-right: 5px;">${dataHora}</span>
+                        <span style="color: #007bff; margin-right: 5px;">${dataExibicao}</span>
                         ${botoesAdmin}
                     </div>
                 </div>
@@ -230,6 +244,8 @@ onAuthStateChanged(auth, async (user) => {
                     if (tabAdmin) tabAdmin.style.display = "none";
                 }
 
+                resetarDataParaHoje(); // Prepara a data
+                
                 const btnLogin = document.getElementById('loginGoogleBtn');
                 if (btnLogin) btnLogin.innerText = "Entrar com Google";
 
@@ -250,50 +266,53 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// RADAR DE DUPLICIDADE 
+// RADAR DE DUPLICIDADE (AGORA OLHANDO A DATA REAL)
 // ==========================================
 async function verificarDuplicidade() {
+    const dataVal = document.getElementById("dataColeta")?.value;
     const turnoVal = document.getElementById("turno")?.value;
     const tratamentoVal = document.getElementById("tratamento")?.value;
     const caixaVal = document.getElementById("caixa")?.value;
+    
     const aviso = document.getElementById("avisoDuplicidade");
     const btnSalvar = document.getElementById("btnSalvarMedicao");
 
     if (!aviso || !btnSalvar) return;
 
-    if (!turnoVal || !tratamentoVal || !caixaVal) {
+    if (!dataVal || !turnoVal || !tratamentoVal || !caixaVal) {
         aviso.style.display = "none";
         toggleCampos(false); 
-        btnSalvar.innerText = "Preencha Turno, Tratamento e Caixa";
+        btnSalvar.innerText = "Preencha Data, Turno, Tratamento e Caixa";
         return;
     }
 
     try {
+        // Agora o radar procura pela Data Real que a pessoa digitou, não pelo 'hoje'
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(40));
         const snap = await getDocs(q);
 
-        const hoje = new Date();
         let duplicado = false;
 
         snap.forEach(doc => {
             const d = doc.data();
-            if (d.timestamp) {
-                const dataDoc = d.timestamp.toDate();
-                if (dataDoc.getDate() === hoje.getDate() &&
-                    dataDoc.getMonth() === hoje.getMonth() &&
-                    dataDoc.getFullYear() === hoje.getFullYear() &&
-                    d.turno === turnoVal && 
-                    d.tratamento === tratamentoVal && 
-                    d.caixa === caixaVal) {
-                    duplicado = true;
-                }
+            
+            // Tolerância para registros antigos sem a data explícita salva
+            let docDataReal = d.dataColeta; 
+            if (!docDataReal && d.timestamp) {
+                // Tenta descobrir a data pelo timestamp
+                const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+                docDataReal = (new Date(d.timestamp.toDate() - tzoffset)).toISOString().slice(0, 10);
+            }
+
+            if (docDataReal === dataVal && d.turno === turnoVal && d.tratamento === tratamentoVal && d.caixa === caixaVal) {
+                duplicado = true;
             }
         });
 
         if (duplicado) {
             aviso.style.display = "block";
             toggleCampos(false);
-            btnSalvar.innerText = "Combinação já registrada!";
+            btnSalvar.innerText = "Combinação já registrada nesta data!";
         } else {
             aviso.style.display = "none";
             toggleCampos(true);
@@ -305,13 +324,13 @@ async function verificarDuplicidade() {
 }
 
 document.addEventListener('change', (e) => {
-    if (e.target.id === 'turno' || e.target.id === 'tratamento' || e.target.id === 'caixa') {
+    if (e.target.id === 'dataColeta' || e.target.id === 'turno' || e.target.id === 'tratamento' || e.target.id === 'caixa') {
         verificarDuplicidade();
     }
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE GERAIS E PLANILHA
+// EVENTOS DE CLIQUE E GERAÇÃO DA PLANILHA (ORDEM DE FERRO)
 // ==========================================
 document.addEventListener('click', async (e) => {
     
@@ -360,6 +379,15 @@ document.addEventListener('click', async (e) => {
         if (!d) return alert("Erro ao recuperar dados da medição.");
 
         document.getElementById("editIdDoc").value = idDoc;
+        
+        // Puxa a Data da Coleta
+        let dataRealEdit = d.dataColeta;
+        if (!dataRealEdit && d.timestamp) {
+            const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+            dataRealEdit = (new Date(d.timestamp.toDate() - tzoffset)).toISOString().slice(0, 10);
+        }
+        setEditVal("editDataColeta", dataRealEdit);
+        
         setEditVal("editTurno", d.turno);
         setEditVal("editTratamento", d.tratamento);
         setEditVal("editCaixa", d.caixa);
@@ -446,7 +474,9 @@ document.addEventListener('click', async (e) => {
     if (e.target.id === 'btnAtualizarHistorico') carregarHistorico();
     if (e.target.id === 'btnSair') { await signOut(auth); window.location.reload(); }
 
-    // GERAÇÃO DO RELATÓRIO
+    // ==========================================
+    // GERAÇÃO DO RELATÓRIO (COM A ORDEM DE FERRO)
+    // ==========================================
     if (e.target.id === 'btnBaixarRelatorio') {
         if (!isAdmin) return alert("Acesso Negado."); 
         e.target.innerText = "Gerando...";
@@ -457,26 +487,51 @@ document.addEventListener('click', async (e) => {
 
             snap.forEach(doc => {
                 const d = doc.data();
-                if (!d.timestamp) return;
+                if (!d.timestamp && !d.dataColeta) return;
 
-                const dt = d.timestamp.toDate();
-                const dataStr = dt.toLocaleDateString();
+                // Identifica a data real da coleta
+                let dataStrInvertida = d.dataColeta; // Ex: 2026-04-09
+                if (!dataStrInvertida && d.timestamp) {
+                    const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+                    dataStrInvertida = (new Date(d.timestamp.toDate() - tzoffset)).toISOString().slice(0, 10);
+                }
+                
+                const dataStrFormatadaBR = dataStrInvertida.split('-').reverse().join('/'); // Ex: 09/04/2026
                 const turno = d.turno || "Sem Turno";
-                const chaveGrupo = `${dataStr}_${turno}`;
+                const chaveGrupo = `${dataStrInvertida}_${turno}`;
 
                 if (!gruposMap[chaveGrupo]) {
-                    const novoGrupo = { dataStr: dataStr, turno: turno, ordem: dt.getTime(), medicoes: {} };
+                    // Peso para ordenar: Manhã sempre vem antes da Tarde no Excel
+                    let pesoTurno = 0;
+                    if(turno === "Manhã") pesoTurno = 1;
+                    if(turno === "Tarde") pesoTurno = 2;
+
+                    const novoGrupo = { 
+                        dataStrInvertida: dataStrInvertida, 
+                        dataStrFormatadaBR: dataStrFormatadaBR,
+                        turno: turno, 
+                        pesoTurno: pesoTurno, 
+                        medicoes: {} 
+                    };
                     gruposMap[chaveGrupo] = novoGrupo;
                     gruposArray.push(novoGrupo);
                 }
 
                 const chaveCaixa = `${d.tratamento}_${d.caixa}`;
+                // Se duas pessoas preencheram a mesma caixa sem querer, mantém a mais recente salva
                 if (!gruposMap[chaveGrupo].medicoes[chaveCaixa]) {
-                    gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObj: dt };
+                    gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObjOriginal: d.timestamp ? d.timestamp.toDate() : null };
                 }
             });
 
-            gruposArray.sort((a, b) => b.ordem - a.ordem);
+            // ORDEM DE FERRO:
+            // 1º Agrupa pela Data da Coleta (do dia mais novo para o mais velho)
+            // 2º Agrupa pelo Turno (Sempre Manhã em cima, Tarde embaixo)
+            gruposArray.sort((a, b) => {
+                if (a.dataStrInvertida > b.dataStrInvertida) return -1;
+                if (a.dataStrInvertida < b.dataStrInvertida) return 1;
+                return a.pesoTurno - b.pesoTurno;
+            });
 
             const sequenciaCaixas = [
                 { t: "Tratamento 1", c: "Caixa 1" }, { t: "Tratamento 1", c: "Caixa 2" }, { t: "Tratamento 1", c: "Caixa 3" },
@@ -484,7 +539,7 @@ document.addEventListener('click', async (e) => {
                 { t: "Tratamento 3", c: "Caixa 1" }, { t: "Tratamento 3", c: "Caixa 2" }, { t: "Tratamento 3", c: "Caixa 3" }
             ];
 
-            const cabecalho = "Data e Hora;Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
+            const cabecalho = "Data da Coleta;Hora(Registro);Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
             let csv = "\ufeff"; 
             const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
 
@@ -495,10 +550,10 @@ document.addEventListener('click', async (e) => {
                     const med = grupo.medicoes[chave];
 
                     if (med) {
-                        const horaFormatada = `${med.dataObj.toLocaleDateString()} ${med.dataObj.toLocaleTimeString().substring(0,5)}`;
-                        csv += `${horaFormatada};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
+                        const horaSalvamento = med.dataObjOriginal ? med.dataObjOriginal.toLocaleTimeString().substring(0,5) : "--:--";
+                        csv += `${grupo.dataStrFormatadaBR};${horaSalvamento};${med.turno};${med.tratamento};${med.caixa};${formatarNumero(med.amonia)};${formatarNumero(med.nitrito)};${formatarNumero(med.alcalinidade)};${formatarNumero(med.dureza)};${formatarNumero(med.ph)};${formatarNumero(med.od)};${formatarNumero(med.temperatura)};${formatarNumero(med.condutividade)};${formatarNumero(med.salinidade)};${formatarNumero(med.solidos)};${med.coletor || ""}\n`;
                     } else {
-                        csv += `;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
+                        csv += `${grupo.dataStrFormatadaBR};--;${grupo.turno};${caixaAlvo.t};${caixaAlvo.c};;;;;;;;;;;\n`;
                     }
                 });
                 if (index < gruposArray.length - 1) csv += "\n\n";
@@ -532,6 +587,7 @@ document.addEventListener('submit', async (e) => {
             await addDoc(collection(db, "medicoes"), {
                 coletor: document.getElementById("userNameHeader")?.innerText || "N/A",
                 email: auth.currentUser?.email || "N/A",
+                dataColeta: document.getElementById("dataColeta").value, // Salva a data selecionada
                 turno: document.getElementById("turno").value,
                 tratamento: document.getElementById("tratamento").value,
                 caixa: document.getElementById("caixa").value,
@@ -545,21 +601,19 @@ document.addEventListener('submit', async (e) => {
                 condutividade: getVal("condutividade"),
                 salinidade: getVal("salinidade"),
                 solidos: getVal("solidos"),
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp() // Continua salvando pra auditoria de segurança
             });
             alert("Medição salva com sucesso!");
             
-            // RESET: Limpa os inputs numéricos
+            // RESET INTELIGENTE
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
-            // Limpa Tratamento e Caixa, forçando nova escolha
             document.getElementById("tratamento").value = "";
             document.getElementById("caixa").value = "";
             
-            // Trava os campos novamente e esconde o aviso
             toggleCampos(false);
             const aviso = document.getElementById("avisoDuplicidade");
             if (aviso) aviso.style.display = "none";
-            if(btn) btn.innerText = "Preencha Turno, Tratamento e Caixa";
+            if(btn) btn.innerText = "Preencha Data, Turno, Tratamento e Caixa";
 
         } catch (err) { 
             alert("Erro ao salvar: " + err.message); 
@@ -583,6 +637,7 @@ document.addEventListener('submit', async (e) => {
 
         try {
             await updateDoc(doc(db, "medicoes", idDoc), {
+                dataColeta: document.getElementById("editDataColeta").value, // Permite corrigir a data também
                 turno: document.getElementById("editTurno").value,
                 tratamento: document.getElementById("editTratamento").value,
                 caixa: document.getElementById("editCaixa").value,
