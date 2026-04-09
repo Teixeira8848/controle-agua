@@ -4,11 +4,10 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 
 // ==========================================
 // 👑 PROTEÇÃO DOS FUNDADORES DO SISTEMA 👑
-// Cuidado ao alterar: nunca apague as aspas ("") nem a vírgula (,).
 // ==========================================
 const EMAILS_DOS_DONOS = [
     "willyamrodrigo6@gmail.com", 
-    "willyam.rodrigo6@gmail.com"
+    "email.do.socio@gmail.com"
 ]; 
 
 const firebaseConfig = {
@@ -143,7 +142,7 @@ async function carregarHistorico() {
 }
 
 // ==========================================
-// FUNÇÃO PAINEL ADMIN (VERIFICA LISTA VIP)
+// FUNÇÃO PAINEL ADMIN
 // ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
@@ -160,8 +159,6 @@ async function carregarListaUsuarios() {
             const uId = docSnap.id;
             
             const isEuMesmo = (uId === auth.currentUser.uid);
-            
-            // A mágica acontece aqui: verifica se o email está na lista de Fundadores
             const isDonoDoApp = EMAILS_DOS_DONOS.includes(u.email); 
             
             let btnAcao = "";
@@ -253,7 +250,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// RADAR DE DUPLICIDADE (BLOQUEIA O BOTAO E CAMPOS)
+// RADAR DE DUPLICIDADE 
 // ==========================================
 async function verificarDuplicidade() {
     const turnoVal = document.getElementById("turno")?.value;
@@ -554,7 +551,7 @@ document.addEventListener('submit', async (e) => {
             
             // RESET: Limpa os inputs numéricos
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
-            // Limpa Tratamento e Caixa, forçando nova escolha. O Turno fica!
+            // Limpa Tratamento e Caixa, forçando nova escolha
             document.getElementById("tratamento").value = "";
             document.getElementById("caixa").value = "";
             
