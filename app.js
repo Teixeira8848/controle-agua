@@ -63,7 +63,7 @@ function toggleCampos(liberar) {
         inputs.forEach(inp => inp.disabled = false);
         btnSalvar.disabled = false;
         btnSalvar.style.backgroundColor = "#007bff";
-        btnSalvar.innerText = "Salvar Medicao";
+        btnSalvar.innerText = "Salvar Medição";
     } else {
         area.classList.add("area-bloqueada");
         inputs.forEach(inp => inp.disabled = true);
@@ -75,7 +75,7 @@ function toggleCampos(liberar) {
 async function carregarHistorico() {
     const lista = document.getElementById("listaHistorico");
     if (!lista) return;
-    lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as ultimas 20 coletas...</p>';
+    lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as últimas 20 coletas...</p>';
     
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(20));
@@ -122,7 +122,7 @@ async function carregarHistorico() {
                 <p style="margin: 3px 0;"><strong>Coletor:</strong> ${d.coletor}</p>
                 
                 <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #eee;">
-                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Amonia:</strong><br>${d.amonia || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Amônia:</strong><br>${d.amonia || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Nitrito:</strong><br>${d.nitrito || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>pH:</strong><br>${d.ph || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Temp:</strong><br>${d.temperatura || '-'}</span>
@@ -131,7 +131,7 @@ async function carregarHistorico() {
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Dureza:</strong><br>${d.dureza || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Condutiv.:</strong><br>${d.condutividade || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Salinidade:</strong><br>${d.salinidade || '-'}</span>
-                    <span style="flex: 1 1 100%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Solidos Totais:</strong><br>${d.solidos || '-'}</span>
+                    <span style="flex: 1 1 100%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Sólidos Totais:</strong><br>${d.solidos || '-'}</span>
                 </div>
             </div>
             `;
@@ -139,7 +139,7 @@ async function carregarHistorico() {
         lista.innerHTML = html;
     } catch (e) {
         console.error("Erro no historico:", e);
-        lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o historico.</p>';
+        lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o histórico.</p>';
     }
 }
 
@@ -147,11 +147,14 @@ async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
     if (!listaUsuarios || !isAdmin) return;
     
-    listaUsuarios.innerHTML = '<p style="text-align: center; color: #666;">Buscando equipe...</p>';
+    listaUsuarios.innerHTML = '<p style="text-align: center; color: #666;">Carregando usuários...</p>';
 
     try {
         const snap = await getDocs(collection(db, "usuarios"));
         let html = "";
+        
+        // Verifica se quem está acessando a tela é um Fundador
+        const visualizadorEhFundador = auth.currentUser && EMAILS_DOS_DONOS.includes(auth.currentUser.email);
         
         snap.forEach(docSnap => {
             const u = docSnap.data();
@@ -165,18 +168,24 @@ async function carregarListaUsuarios() {
             if (isDonoDoApp) {
                 btnAcao = `<span style="font-size: 0.85rem; color: #ffc107; background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Fundador</span>`;
             } else if (isEuMesmo) {
-                btnAcao = `<span style="font-size: 0.8rem; color: #28a745; font-weight: bold;">(Voce)</span>`;
+                btnAcao = `<span style="font-size: 0.8rem; color: #28a745; font-weight: bold;">(Você)</span>`;
             } else if (u.admin) {
                 btnAcao = `<button class="btn-toggle-admin" data-uid="${uId}" data-status="remover" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Remover Admin</button>`;
             } else {
                 btnAcao = `<button class="btn-toggle-admin" data-uid="${uId}" data-status="dar" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Tornar Admin</button>`;
             }
 
+            // A linha do ID só é gerada no HTML se o visualizador for Fundador
+            let linhaIdHTML = visualizadorEhFundador 
+                ? `<span style="font-size: 0.70rem; color: #999; display: block; margin-top: 2px;">ID: ${uId}</span>` 
+                : ``;
+
             html += `
             <div class="card-usuario">
                 <div>
                     <strong>${u.nome}</strong><br>
                     <span style="font-size: 0.75rem; color: #666;">${u.email}</span>
+                    ${linhaIdHTML}
                 </div>
                 <div>${btnAcao}</div>
             </div>
@@ -185,7 +194,7 @@ async function carregarListaUsuarios() {
         listaUsuarios.innerHTML = html;
     } catch (err) {
         console.error(err);
-        listaUsuarios.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar usuarios.</p>';
+        listaUsuarios.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar usuários.</p>';
     }
 }
 
@@ -200,6 +209,7 @@ onAuthStateChanged(auth, async (user) => {
             if (docSnap.exists()) {
                 const d = docSnap.data();
                 isAdmin = d.admin === true;
+                const isFundador = EMAILS_DOS_DONOS.includes(user.email);
 
                 escrever("userNameHeader", d.nome);
                 escrever("userEmailHeader", user.email);
@@ -224,6 +234,16 @@ onAuthStateChanged(auth, async (user) => {
                     if (btnPlanilha) btnPlanilha.style.display = "none";
                     const tabAdmin = document.getElementById("tabAdmin");
                     if (tabAdmin) tabAdmin.style.display = "none";
+                }
+
+                // O ID no perfil só aparece se for Fundador
+                const containerIdPerfil = document.getElementById("containerIdPerfil");
+                if (containerIdPerfil) {
+                    if (isFundador) {
+                        containerIdPerfil.style.display = "block";
+                    } else {
+                        containerIdPerfil.style.display = "none";
+                    }
                 }
 
                 resetarDataParaHoje(); 
@@ -293,7 +313,7 @@ async function verificarDuplicidade() {
         if (duplicado) {
             aviso.style.display = "block";
             toggleCampos(false);
-            btnSalvar.innerText = "Combinacao ja registrada nesta data";
+            btnSalvar.innerText = "Combinação já registrada nesta data";
         } else {
             aviso.style.display = "none";
             toggleCampos(true);
@@ -354,7 +374,6 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro: " + err.message); }
     }
 
-    // NOVO EVENTO PARA DESLOGAR O USUÁRIO PRESO NA TELA DE CADASTRO
     if (e.target.id === 'btnCancelarCadastro') {
         try {
             await signOut(auth);
@@ -366,13 +385,13 @@ document.addEventListener('click', async (e) => {
 
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
-        if (!novoNome) return alert("O nome nao pode ser vazio.");
+        if (!novoNome) return alert("O nome não pode ser vazio.");
         e.target.innerText = "Atualizando...";
         try {
             await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: novoNome });
             alert("Nome atualizado com sucesso!");
             window.location.reload();
-        } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alteracoes"; }
+        } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
     const btnEditar = e.target.closest('.btn-editar');
@@ -383,7 +402,7 @@ document.addEventListener('click', async (e) => {
 
         const idDoc = btnEditar.getAttribute('data-id');
         const d = registrosAtuais[idDoc]; 
-        if (!d) return alert("Erro ao recuperar dados da medicao.");
+        if (!d) return alert("Erro ao recuperar dados da medição.");
 
         document.getElementById("editIdDoc").value = idDoc;
         
@@ -419,7 +438,7 @@ document.addEventListener('click', async (e) => {
     if (btnExcluir) {
         if (!isAdmin) return alert("Acesso negado."); 
         const idDoc = btnExcluir.getAttribute('data-id');
-        if (confirm("Tem certeza que deseja apagar esta medicao? Isso nao pode ser desfeito.")) {
+        if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
             try {
                 await deleteDoc(doc(db, "medicoes", idDoc));
                 carregarHistorico(); 
@@ -435,15 +454,15 @@ document.addEventListener('click', async (e) => {
         const vaiSerAdmin = (acao === 'dar');
 
         const msgConfirmacao = vaiSerAdmin 
-            ? "Tem certeza que deseja promover este usuario a Administrador?" 
-            : "Tem certeza que deseja remover o acesso de Administrador deste usuario?";
+            ? "Tem certeza que deseja promover este usuário a Administrador?" 
+            : "Tem certeza que deseja remover o acesso de Administrador deste usuário?";
 
         if (confirm(msgConfirmacao)) {
             try {
                 await updateDoc(doc(db, "usuarios", alvoUid), { admin: vaiSerAdmin });
-                alert("Permissoes atualizadas com sucesso!");
+                alert("Permissões atualizadas com sucesso!");
                 carregarListaUsuarios(); 
-            } catch (err) { alert("Erro ao atualizar permissao: " + err.message); }
+            } catch (err) { alert("Erro ao atualizar permissão: " + err.message); }
         }
     }
 
@@ -500,7 +519,7 @@ document.addEventListener('click', async (e) => {
 
                 if (!gruposMap[chaveGrupo]) {
                     let pesoTurno = 0;
-                    if(turno === "Manha") pesoTurno = 1;
+                    if(turno === "Manhã") pesoTurno = 1;
                     if(turno === "Tarde") pesoTurno = 2;
 
                     const novoGrupo = { 
@@ -532,7 +551,7 @@ document.addEventListener('click', async (e) => {
                 { t: "Tratamento 3", c: "Caixa 1" }, { t: "Tratamento 3", c: "Caixa 2" }, { t: "Tratamento 3", c: "Caixa 3" }
             ];
 
-            const cabecalho = "Data da Coleta;Hora(Registro);Turno;Tratamento;Caixa;Amonia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Solidos Totais;Coletor\n";
+            const cabecalho = "Data da Coleta;Hora(Registro);Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
             let csv = "\ufeff"; 
             const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
 
@@ -591,7 +610,7 @@ document.addEventListener('submit', async (e) => {
                 solidos: getVal("solidos"),
                 timestamp: serverTimestamp() 
             });
-            alert("Medicao salva com sucesso!");
+            alert("Medição salva com sucesso!");
             
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
             document.getElementById("tratamento").value = "";
