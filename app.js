@@ -3,7 +3,7 @@ import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // ==========================================
-// 👑 PROTEÇÃO DOS FUNDADORES DO SISTEMA 👑
+// PROTECAO DOS FUNDADORES DO SISTEMA
 // ==========================================
 const EMAILS_DOS_DONOS = [
     "willyamrodrigo6@gmail.com", 
@@ -27,7 +27,6 @@ const provider = new GoogleAuthProvider();
 let isAdmin = false; 
 let registrosAtuais = {}; 
 
-// Preenche automaticamente o campo Data com o dia de hoje
 function resetarDataParaHoje() {
     const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
     const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
@@ -36,7 +35,7 @@ function resetarDataParaHoje() {
 }
 
 // ==========================================
-// FUNÇÕES DE INTERFACE E CONTROLE DE CAMPOS
+// FUNCOES DE INTERFACE E CONTROLE DE CAMPOS
 // ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
@@ -71,7 +70,7 @@ function toggleCampos(liberar) {
         inputs.forEach(inp => inp.disabled = false);
         btnSalvar.disabled = false;
         btnSalvar.style.backgroundColor = "#007bff";
-        btnSalvar.innerText = "Salvar Medição";
+        btnSalvar.innerText = "Salvar Medicao";
     } else {
         area.classList.add("area-bloqueada");
         inputs.forEach(inp => inp.disabled = true);
@@ -81,12 +80,12 @@ function toggleCampos(liberar) {
 }
 
 // ==========================================
-// FUNÇÃO HISTÓRICO
+// FUNCAO HISTORICO
 // ==========================================
 async function carregarHistorico() {
     const lista = document.getElementById("listaHistorico");
     if (!lista) return;
-    lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as últimas 20 coletas...</p>';
+    lista.innerHTML = '<p style="text-align: center; color: #666;">Buscando as ultimas 20 coletas...</p>';
     
     try {
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(20));
@@ -105,10 +104,9 @@ async function carregarHistorico() {
             const idDoc = doc.id;
             registrosAtuais[idDoc] = d; 
             
-            // Lógica para pegar a data real informada ou a do sistema (se for registro velho)
             let dataExibicao = "Sem data";
             if (d.dataColeta) {
-                dataExibicao = d.dataColeta.split('-').reverse().join('/'); // Transforma YYYY-MM-DD em DD/MM/YYYY
+                dataExibicao = d.dataColeta.split('-').reverse().join('/');
             } else if (d.timestamp) {
                 dataExibicao = d.timestamp.toDate().toLocaleDateString('pt-BR');
             }
@@ -116,7 +114,7 @@ async function carregarHistorico() {
             let botoesAdmin = "";
             if (isAdmin) {
                 botoesAdmin = `
-                    <button class="btn-editar" data-id="${idDoc}">✏️</button>
+                    <button class="btn-editar" data-id="${idDoc}">Editar</button>
                     <button class="btn-excluir-novo" data-id="${idDoc}">Excluir</button>
                 `;
             }
@@ -134,7 +132,7 @@ async function carregarHistorico() {
                 <p style="margin: 3px 0;"><strong>Coletor:</strong> ${d.coletor}</p>
                 
                 <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #eee;">
-                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Amônia:</strong><br>${d.amonia || '-'}</span>
+                    <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Amonia:</strong><br>${d.amonia || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Nitrito:</strong><br>${d.nitrito || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>pH:</strong><br>${d.ph || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Temp:</strong><br>${d.temperatura || '-'}</span>
@@ -143,20 +141,20 @@ async function carregarHistorico() {
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Dureza:</strong><br>${d.dureza || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Condutiv.:</strong><br>${d.condutividade || '-'}</span>
                     <span style="flex: 1 1 30%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Salinidade:</strong><br>${d.salinidade || '-'}</span>
-                    <span style="flex: 1 1 100%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Sólidos Totais:</strong><br>${d.solidos || '-'}</span>
+                    <span style="flex: 1 1 100%; text-align: center; font-size: 0.8rem; color: #444;"><strong>Solidos Totais:</strong><br>${d.solidos || '-'}</span>
                 </div>
             </div>
             `;
         });
         lista.innerHTML = html;
     } catch (e) {
-        console.error("Erro no histórico:", e);
-        lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o histórico.</p>';
+        console.error("Erro no historico:", e);
+        lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o historico.</p>';
     }
 }
 
 // ==========================================
-// FUNÇÃO PAINEL ADMIN
+// FUNCAO PAINEL ADMIN 
 // ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
@@ -178,9 +176,9 @@ async function carregarListaUsuarios() {
             let btnAcao = "";
             
             if (isDonoDoApp) {
-                btnAcao = `<span style="font-size: 0.85rem; color: #ffc107; background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">👑 Fundador</span>`;
+                btnAcao = `<span style="font-size: 0.85rem; color: #ffc107; background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Fundador</span>`;
             } else if (isEuMesmo) {
-                btnAcao = `<span style="font-size: 0.8rem; color: #28a745; font-weight: bold;">(Você)</span>`;
+                btnAcao = `<span style="font-size: 0.8rem; color: #28a745; font-weight: bold;">(Voce)</span>`;
             } else if (u.admin) {
                 btnAcao = `<button class="btn-toggle-admin" data-uid="${uId}" data-status="remover" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Remover Admin</button>`;
             } else {
@@ -200,12 +198,12 @@ async function carregarListaUsuarios() {
         listaUsuarios.innerHTML = html;
     } catch (err) {
         console.error(err);
-        listaUsuarios.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar usuários.</p>';
+        listaUsuarios.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar usuarios.</p>';
     }
 }
 
 // ==========================================
-// MONITOR DE AUTENTICAÇÃO
+// MONITOR DE AUTENTICACAO
 // ==========================================
 let timeoutFirebase = setTimeout(() => { mostrarTela("telaLogin"); }, 5000);
 
@@ -244,7 +242,7 @@ onAuthStateChanged(auth, async (user) => {
                     if (tabAdmin) tabAdmin.style.display = "none";
                 }
 
-                resetarDataParaHoje(); // Prepara a data
+                resetarDataParaHoje(); 
                 
                 const btnLogin = document.getElementById('loginGoogleBtn');
                 if (btnLogin) btnLogin.innerText = "Entrar com Google";
@@ -266,7 +264,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// RADAR DE DUPLICIDADE (AGORA OLHANDO A DATA REAL)
+// RADAR DE DUPLICIDADE
 // ==========================================
 async function verificarDuplicidade() {
     const dataVal = document.getElementById("dataColeta")?.value;
@@ -287,7 +285,6 @@ async function verificarDuplicidade() {
     }
 
     try {
-        // Agora o radar procura pela Data Real que a pessoa digitou, não pelo 'hoje'
         const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(40));
         const snap = await getDocs(q);
 
@@ -296,10 +293,8 @@ async function verificarDuplicidade() {
         snap.forEach(doc => {
             const d = doc.data();
             
-            // Tolerância para registros antigos sem a data explícita salva
             let docDataReal = d.dataColeta; 
             if (!docDataReal && d.timestamp) {
-                // Tenta descobrir a data pelo timestamp
                 const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
                 docDataReal = (new Date(d.timestamp.toDate() - tzoffset)).toISOString().slice(0, 10);
             }
@@ -312,7 +307,7 @@ async function verificarDuplicidade() {
         if (duplicado) {
             aviso.style.display = "block";
             toggleCampos(false);
-            btnSalvar.innerText = "Combinação já registrada nesta data!";
+            btnSalvar.innerText = "Combinacao ja registrada nesta data";
         } else {
             aviso.style.display = "none";
             toggleCampos(true);
@@ -330,7 +325,7 @@ document.addEventListener('change', (e) => {
 });
 
 // ==========================================
-// EVENTOS DE CLIQUE E GERAÇÃO DA PLANILHA (ORDEM DE FERRO)
+// EVENTOS DE CLIQUE E GERACAO DA PLANILHA
 // ==========================================
 document.addEventListener('click', async (e) => {
     
@@ -358,16 +353,15 @@ document.addEventListener('click', async (e) => {
 
     if (e.target.id === 'btnAtualizarPerfil') {
         const novoNome = document.getElementById("editNome")?.value;
-        if (!novoNome) return alert("O nome não pode ser vazio.");
+        if (!novoNome) return alert("O nome nao pode ser vazio.");
         e.target.innerText = "Atualizando...";
         try {
             await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: novoNome });
             alert("Nome atualizado com sucesso!");
             window.location.reload();
-        } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
+        } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alteracoes"; }
     }
 
-    // ABRIR JANELA DE EDIÇÃO
     const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
         if (!isAdmin) return alert("Acesso negado.");
@@ -376,11 +370,10 @@ document.addEventListener('click', async (e) => {
 
         const idDoc = btnEditar.getAttribute('data-id');
         const d = registrosAtuais[idDoc]; 
-        if (!d) return alert("Erro ao recuperar dados da medição.");
+        if (!d) return alert("Erro ao recuperar dados da medicao.");
 
         document.getElementById("editIdDoc").value = idDoc;
         
-        // Puxa a Data da Coleta
         let dataRealEdit = d.dataColeta;
         if (!dataRealEdit && d.timestamp) {
             const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
@@ -405,17 +398,15 @@ document.addEventListener('click', async (e) => {
         modal.style.display = "flex";
     }
 
-    // FECHAR A JANELA DE EDIÇÃO
     if (e.target.id === 'btnCancelarEdicao') {
         document.getElementById("modalEditar").style.display = "none";
     }
 
-    // EXCLUIR HISTÓRICO
     const btnExcluir = e.target.closest('.btn-excluir-novo');
     if (btnExcluir) {
         if (!isAdmin) return alert("Acesso negado."); 
         const idDoc = btnExcluir.getAttribute('data-id');
-        if (confirm("Tem certeza que deseja apagar esta medição? Isso não pode ser desfeito.")) {
+        if (confirm("Tem certeza que deseja apagar esta medicao? Isso nao pode ser desfeito.")) {
             try {
                 await deleteDoc(doc(db, "medicoes", idDoc));
                 carregarHistorico(); 
@@ -423,7 +414,6 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // ADMIN: DAR OU REMOVER PERMISSÃO
     const btnToggleAdmin = e.target.closest('.btn-toggle-admin');
     if (btnToggleAdmin) {
         if (!isAdmin) return alert("Acesso negado.");
@@ -432,19 +422,18 @@ document.addEventListener('click', async (e) => {
         const vaiSerAdmin = (acao === 'dar');
 
         const msgConfirmacao = vaiSerAdmin 
-            ? "Tem certeza que deseja promover este usuário a Administrador?" 
-            : "Tem certeza que deseja remover o acesso de Administrador deste usuário?";
+            ? "Tem certeza que deseja promover este usuario a Administrador?" 
+            : "Tem certeza que deseja remover o acesso de Administrador deste usuario?";
 
         if (confirm(msgConfirmacao)) {
             try {
                 await updateDoc(doc(db, "usuarios", alvoUid), { admin: vaiSerAdmin });
-                alert("Permissões atualizadas com sucesso!");
+                alert("Permissoes atualizadas com sucesso!");
                 carregarListaUsuarios(); 
-            } catch (err) { alert("Erro ao atualizar permissão: " + err.message); }
+            } catch (err) { alert("Erro ao atualizar permissao: " + err.message); }
         }
     }
 
-    // NAVEGAÇÃO DE ABAS
     const abas = [
         { btn: 'tabRegistro', tela: 'secaoRegistro' },
         { btn: 'tabHistorico', tela: 'secaoHistorico' },
@@ -474,9 +463,6 @@ document.addEventListener('click', async (e) => {
     if (e.target.id === 'btnAtualizarHistorico') carregarHistorico();
     if (e.target.id === 'btnSair') { await signOut(auth); window.location.reload(); }
 
-    // ==========================================
-    // GERAÇÃO DO RELATÓRIO (COM A ORDEM DE FERRO)
-    // ==========================================
     if (e.target.id === 'btnBaixarRelatorio') {
         if (!isAdmin) return alert("Acesso Negado."); 
         e.target.innerText = "Gerando...";
@@ -489,21 +475,19 @@ document.addEventListener('click', async (e) => {
                 const d = doc.data();
                 if (!d.timestamp && !d.dataColeta) return;
 
-                // Identifica a data real da coleta
-                let dataStrInvertida = d.dataColeta; // Ex: 2026-04-09
+                let dataStrInvertida = d.dataColeta; 
                 if (!dataStrInvertida && d.timestamp) {
                     const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
                     dataStrInvertida = (new Date(d.timestamp.toDate() - tzoffset)).toISOString().slice(0, 10);
                 }
                 
-                const dataStrFormatadaBR = dataStrInvertida.split('-').reverse().join('/'); // Ex: 09/04/2026
+                const dataStrFormatadaBR = dataStrInvertida.split('-').reverse().join('/');
                 const turno = d.turno || "Sem Turno";
                 const chaveGrupo = `${dataStrInvertida}_${turno}`;
 
                 if (!gruposMap[chaveGrupo]) {
-                    // Peso para ordenar: Manhã sempre vem antes da Tarde no Excel
                     let pesoTurno = 0;
-                    if(turno === "Manhã") pesoTurno = 1;
+                    if(turno === "Manha") pesoTurno = 1;
                     if(turno === "Tarde") pesoTurno = 2;
 
                     const novoGrupo = { 
@@ -518,15 +502,11 @@ document.addEventListener('click', async (e) => {
                 }
 
                 const chaveCaixa = `${d.tratamento}_${d.caixa}`;
-                // Se duas pessoas preencheram a mesma caixa sem querer, mantém a mais recente salva
                 if (!gruposMap[chaveGrupo].medicoes[chaveCaixa]) {
                     gruposMap[chaveGrupo].medicoes[chaveCaixa] = { ...d, dataObjOriginal: d.timestamp ? d.timestamp.toDate() : null };
                 }
             });
 
-            // ORDEM DE FERRO:
-            // 1º Agrupa pela Data da Coleta (do dia mais novo para o mais velho)
-            // 2º Agrupa pelo Turno (Sempre Manhã em cima, Tarde embaixo)
             gruposArray.sort((a, b) => {
                 if (a.dataStrInvertida > b.dataStrInvertida) return -1;
                 if (a.dataStrInvertida < b.dataStrInvertida) return 1;
@@ -539,7 +519,7 @@ document.addEventListener('click', async (e) => {
                 { t: "Tratamento 3", c: "Caixa 1" }, { t: "Tratamento 3", c: "Caixa 2" }, { t: "Tratamento 3", c: "Caixa 3" }
             ];
 
-            const cabecalho = "Data da Coleta;Hora(Registro);Turno;Tratamento;Caixa;Amônia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Sólidos Totais;Coletor\n";
+            const cabecalho = "Data da Coleta;Hora(Registro);Turno;Tratamento;Caixa;Amonia;Nitrito;Alcalinidade;Dureza;pH;OD;Temperatura;Condutividade;Salinidade;Solidos Totais;Coletor\n";
             let csv = "\ufeff"; 
             const formatarNumero = (num) => (num !== null && num !== undefined && num !== "") ? String(num).replace('.', ',') : "";
 
@@ -564,17 +544,16 @@ document.addEventListener('click', async (e) => {
             link.href = URL.createObjectURL(blob);
             link.download = "relatorio_bagrinhos.csv";
             link.click();
-        } catch (err) { alert("Erro no relatório: " + err.message); }
-        finally { e.target.innerText = "📥 Planilha"; }
+        } catch (err) { alert("Erro no relatorio: " + err.message); }
+        finally { e.target.innerText = "Planilha"; }
     }
 });
 
 // ==========================================
-// SALVAR OU EDITAR MEDIÇÃO
+// SALVAR OU EDITAR MEDICAO
 // ==========================================
 document.addEventListener('submit', async (e) => {
     
-    // SALVAR NOVA MEDIÇÃO
     if (e.target.id === 'formMedicao') {
         e.preventDefault();
         
@@ -587,7 +566,7 @@ document.addEventListener('submit', async (e) => {
             await addDoc(collection(db, "medicoes"), {
                 coletor: document.getElementById("userNameHeader")?.innerText || "N/A",
                 email: auth.currentUser?.email || "N/A",
-                dataColeta: document.getElementById("dataColeta").value, // Salva a data selecionada
+                dataColeta: document.getElementById("dataColeta").value,
                 turno: document.getElementById("turno").value,
                 tratamento: document.getElementById("tratamento").value,
                 caixa: document.getElementById("caixa").value,
@@ -601,11 +580,10 @@ document.addEventListener('submit', async (e) => {
                 condutividade: getVal("condutividade"),
                 salinidade: getVal("salinidade"),
                 solidos: getVal("solidos"),
-                timestamp: serverTimestamp() // Continua salvando pra auditoria de segurança
+                timestamp: serverTimestamp() 
             });
-            alert("Medição salva com sucesso!");
+            alert("Medicao salva com sucesso!");
             
-            // RESET INTELIGENTE
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
             document.getElementById("tratamento").value = "";
             document.getElementById("caixa").value = "";
@@ -621,7 +599,6 @@ document.addEventListener('submit', async (e) => {
         }
     }
 
-    // SALVAR EDIÇÃO DE UMA MEDIÇÃO
     if (e.target.id === 'formEditarMedicao') {
         e.preventDefault();
         if (!isAdmin) return alert("Acesso negado.");
@@ -637,7 +614,7 @@ document.addEventListener('submit', async (e) => {
 
         try {
             await updateDoc(doc(db, "medicoes", idDoc), {
-                dataColeta: document.getElementById("editDataColeta").value, // Permite corrigir a data também
+                dataColeta: document.getElementById("editDataColeta").value, 
                 turno: document.getElementById("editTurno").value,
                 tratamento: document.getElementById("editTratamento").value,
                 caixa: document.getElementById("editCaixa").value,
