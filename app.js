@@ -312,7 +312,6 @@ document.addEventListener('change', (e) => {
 
 document.addEventListener('click', async (e) => {
     
-    // NOVO EVENTO: LOGIN COM EMAIL E SENHA
     if (e.target.id === 'loginEmailBtn') {
         const emailVal = document.getElementById("emailLogin").value;
         const senhaVal = document.getElementById("senhaLogin").value;
@@ -353,6 +352,16 @@ document.addEventListener('click', async (e) => {
             await setDoc(doc(db, "usuarios", auth.currentUser.uid), { nome: nomeEl.value, email: auth.currentUser.email, admin: false, dataCadastro: new Date() });
             window.location.reload();
         } catch (err) { alert("Erro: " + err.message); }
+    }
+
+    // NOVO EVENTO PARA DESLOGAR O USUÁRIO PRESO NA TELA DE CADASTRO
+    if (e.target.id === 'btnCancelarCadastro') {
+        try {
+            await signOut(auth);
+            window.location.reload();
+        } catch (err) {
+            alert("Erro ao sair: " + err.message);
+        }
     }
 
     if (e.target.id === 'btnAtualizarPerfil') {
