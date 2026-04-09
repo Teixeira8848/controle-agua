@@ -138,7 +138,7 @@ async function carregarHistorico() {
         });
         lista.innerHTML = html;
     } catch (e) {
-        console.error("Erro no historico:", e);
+        console.error("Erro no histórico:", e);
         lista.innerHTML = '<p style="text-align: center; color: red;">Erro ao carregar o histórico.</p>';
     }
 }
@@ -153,7 +153,6 @@ async function carregarListaUsuarios() {
         const snap = await getDocs(collection(db, "usuarios"));
         let html = "";
         
-        // Verifica se quem está acessando a tela é um Fundador
         const visualizadorEhFundador = auth.currentUser && EMAILS_DOS_DONOS.includes(auth.currentUser.email);
         
         snap.forEach(docSnap => {
@@ -175,7 +174,6 @@ async function carregarListaUsuarios() {
                 btnAcao = `<button class="btn-toggle-admin" data-uid="${uId}" data-status="dar" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Tornar Admin</button>`;
             }
 
-            // A linha do ID só é gerada no HTML se o visualizador for Fundador
             let linhaIdHTML = visualizadorEhFundador 
                 ? `<span style="font-size: 0.70rem; color: #999; display: block; margin-top: 2px;">ID: ${uId}</span>` 
                 : ``;
@@ -236,7 +234,6 @@ onAuthStateChanged(auth, async (user) => {
                     if (tabAdmin) tabAdmin.style.display = "none";
                 }
 
-                // O ID no perfil só aparece se for Fundador
                 const containerIdPerfil = document.getElementById("containerIdPerfil");
                 if (containerIdPerfil) {
                     if (isFundador) {

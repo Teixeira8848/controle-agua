@@ -35,7 +35,7 @@
 
     <div id="telaLogin" class="tela">
       <h1 style="text-align: center;">Bagrinhos</h1>
-      <p style="text-align: center;">Parametros de Qualidade da Agua</p>
+      <p style="text-align: center;">Parâmetros de Qualidade da Água</p>
       
       <div style="margin-top: 25px; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">E-mail de acesso:</label>
@@ -73,14 +73,14 @@
 
       <div style="display: flex; gap: 5px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;">
         <button id="tabRegistro" style="flex: 1; min-width: 80px; margin: 0; padding: 10px; border: none; background-color: #007bff; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">Coleta</button>
-        <button id="tabHistorico" style="flex: 1; min-width: 90px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">Historico</button>
+        <button id="tabHistorico" style="flex: 1; min-width: 90px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">Histórico</button>
         <button id="tabPerfil" style="flex: 1; min-width: 80px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;">Perfil</button>
         <button id="tabAdmin" style="flex: 1; min-width: 90px; margin: 0; padding: 10px; border: none; background-color: #6c757d; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; display: none;">Admin</button>
       </div>
 
       <div id="secaoRegistro">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h2 style="margin: 0;">Nova Medicao</h2>
+          <h2 style="margin: 0;">Nova Medição</h2>
           <button id="btnBaixarRelatorio" style="width: auto; background-color: #28a745; color: white; padding: 5px 10px; margin: 0; border: none; border-radius: 5px; cursor: pointer; display: none;">Planilha</button>
         </div>
 
@@ -92,7 +92,7 @@
           <label style="display: block; margin-top: 10px;">Turno:</label>
           <select id="turno" required style="width: 100%; padding: 8px; box-sizing: border-box;">
             <option value="" selected>Selecione o turno</option>
-            <option value="Manha">Manha</option>
+            <option value="Manhã">Manhã</option>
             <option value="Tarde">Tarde</option>
           </select>
 
@@ -118,13 +118,13 @@
           </div>
 
           <div id="avisoDuplicidade" style="display: none; border-bottom: 2px solid #dc3545; padding-bottom: 5px; margin-top: 5px;">
-            <p style="color: #dc3545; font-weight: bold; text-align: center; margin: 5px 0 0 0; font-size: 0.85rem;">Atencao: Esta combinacao ja foi registrada.</p>
+            <p style="color: #dc3545; font-weight: bold; text-align: center; margin: 5px 0 0 0; font-size: 0.85rem;">Atenção: Esta combinação já foi registrada.</p>
           </div>
           
           <div style="margin: 15px 0;"></div>
 
           <div id="areaParametros" class="area-bloqueada" style="display: flex; flex-direction: column; gap: 5px;">
-            <label>Amonia (mg/L):</label> <input type="number" id="amonia" step="0.01" style="padding: 8px;" disabled>
+            <label>Amônia (mg/L):</label> <input type="number" id="amonia" step="0.01" style="padding: 8px;" disabled>
             <label>Nitrito (mg/L):</label> <input type="number" id="nitrito" step="0.01" style="padding: 8px;" disabled>
             <label>Alcalinidade:</label> <input type="number" id="alcalinidade" step="0.01" style="padding: 8px;" disabled>
             <label>Dureza:</label> <input type="number" id="dureza" step="0.01" style="padding: 8px;" disabled>
@@ -133,7 +133,7 @@
             <label>Temperatura (°C):</label> <input type="number" id="temperatura" step="0.1" style="padding: 8px;" disabled>
             <label>Condutividade:</label> <input type="number" id="condutividade" step="0.01" style="padding: 8px;" disabled>
             <label>Salinidade:</label> <input type="number" id="salinidade" step="0.01" style="padding: 8px;" disabled>
-            <label>Solidos Totais:</label> <input type="number" id="solidos" step="0.01" style="padding: 8px;" disabled>
+            <label>Sólidos Totais:</label> <input type="number" id="solidos" step="0.01" style="padding: 8px;" disabled>
           </div>
 
           <button type="submit" id="btnSalvarMedicao" style="width: 100%; padding: 15px; margin-top: 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;" disabled>Preencha Data, Turno, Tratamento e Caixa</button>
@@ -142,7 +142,7 @@
 
       <div id="secaoHistorico" style="display: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h2 style="margin: 0;">Ultimas Coletas</h2>
+          <h2 style="margin: 0;">Últimas Coletas</h2>
           <button id="btnAtualizarHistorico" style="width: auto; background-color: #17a2b8; color: white; padding: 5px 10px; margin: 0; border: none; border-radius: 5px; cursor: pointer;">Atualizar</button>
         </div>
         <div id="listaHistorico"></div>
@@ -152,7 +152,9 @@
         <h2>Meu Perfil</h2>
         <div style="text-align: center; margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; align-items: center;">
           <div id="userIniciaisLarge" class="bolinha-perfil" style="width: 80px; height: 80px; font-size: 2rem; margin-bottom: 10px; border: 3px solid #007bff;">?</div>
-          <p style="margin: 5px 0;"><strong>ID:</strong> <span id="userIdText" style="color: #666; font-size: 0.75rem;">---</span></p>
+          
+          <p style="margin: 5px 0; display: none;" id="containerIdPerfil"><strong>ID:</strong> <span id="userIdText" style="color: #666; font-size: 0.75rem;">---</span></p>
+          
           <p style="margin: 5px 0;"><strong>Email:</strong> <span id="userEmailText" style="color: #666; font-size: 0.9rem;">---</span></p>
           <p style="margin: 5px 0; color: #28a745; font-weight: bold; display: none;" id="badgeAdmin">Administrador</p>
         </div>
@@ -160,15 +162,15 @@
         <label style="display: block;">Editar Nome:</label>
         <input type="text" id="editNome" placeholder="Seu nome" style="width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box;">
 
-        <button id="btnAtualizarPerfil" style="width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Salvar Alteracoes</button>
+        <button id="btnAtualizarPerfil" style="width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Salvar Alterações</button>
         <button id="btnSair" style="width: 100%; padding: 12px; background-color: #dc3545; color: white; margin-top: 30px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Sair do Sistema</button>
       </div>
 
       <div id="secaoAdmin" style="display: none;">
         <h2 style="margin-bottom: 15px;">Gerenciar Equipe</h2>
-        <p style="font-size: 0.85rem; color: #666;">Aqui voce pode conceder ou remover acesso de Administrador dos membros da equipe.</p>
+        <p style="font-size: 0.85rem; color: #666;">Aqui você pode conceder ou remover acesso de Administrador dos membros da equipe.</p>
         <div id="listaUsuariosAdmin" style="margin-top: 15px; background: #f9f9f9; padding: 10px; border-radius: 8px;">
-            <p style="text-align: center; color: #666;">Carregando usuarios...</p>
+            <p style="text-align: center; color: #666;">Carregando usuários...</p>
         </div>
       </div>
 
@@ -176,8 +178,8 @@
 
     <div id="modalEditar" class="modal-overlay">
         <div class="modal-content">
-            <h3 style="margin-top: 0;">Corrigir Medicao</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">Voce pode alterar qualquer dado desta coleta.</p>
+            <h3 style="margin-top: 0;">Corrigir Medição</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">Você pode alterar qualquer dado desta coleta.</p>
             <form id="formEditarMedicao" autocomplete="off">
                 <input type="hidden" id="editIdDoc">
                 
@@ -186,7 +188,7 @@
 
                 <label style="display: block; margin-bottom: 3px;">Turno:</label>
                 <select id="editTurno" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-bottom: 10px;">
-                    <option value="Manha">Manha</option>
+                    <option value="Manhã">Manhã</option>
                     <option value="Tarde">Tarde</option>
                 </select>
 
@@ -210,7 +212,7 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <label>Amonia (mg/L):</label> <input type="number" id="editAmonia" step="0.01" style="padding: 8px;">
+                    <label>Amônia (mg/L):</label> <input type="number" id="editAmonia" step="0.01" style="padding: 8px;">
                     <label>Nitrito (mg/L):</label> <input type="number" id="editNitrito" step="0.01" style="padding: 8px;">
                     <label>Alcalinidade:</label> <input type="number" id="editAlcalinidade" step="0.01" style="padding: 8px;">
                     <label>Dureza:</label> <input type="number" id="editDureza" step="0.01" style="padding: 8px;">
@@ -219,12 +221,12 @@
                     <label>Temperatura (°C):</label> <input type="number" id="editTemperatura" step="0.1" style="padding: 8px;">
                     <label>Condutividade:</label> <input type="number" id="editCondutividade" step="0.01" style="padding: 8px;">
                     <label>Salinidade:</label> <input type="number" id="editSalinidade" step="0.01" style="padding: 8px;">
-                    <label>Solidos Totais:</label> <input type="number" id="editSolidos" step="0.01" style="padding: 8px;">
+                    <label>Sólidos Totais:</label> <input type="number" id="editSolidos" step="0.01" style="padding: 8px;">
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="button" id="btnCancelarEdicao" style="flex: 1; padding: 12px; border: none; border-radius: 5px; background: #6c757d; color: white; font-weight: bold; cursor: pointer;">Cancelar</button>
-                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 5px; background: #007bff; color: white; font-weight: bold; cursor: pointer;">Salvar Alteracoes</button>
+                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 5px; background: #007bff; color: white; font-weight: bold; cursor: pointer;">Salvar Alterações</button>
                 </div>
             </form>
         </div>
