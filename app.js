@@ -2,8 +2,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy, updateDoc, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// ==========================================
+// PROTECAO DOS FUNDADORES DO SISTEMA
+// ==========================================
 const EMAILS_DOS_DONOS = [
-    "willyamrodrigo6@gmail.com"
+    "willyamrodrigo6@gmail.com", 
+    "email.do.socio@gmail.com"
 ]; 
 
 const firebaseConfig = {
@@ -242,6 +246,12 @@ onAuthStateChanged(auth, async (user) => {
             mostrarTela("telaLogin");
         }
     } else {
+        const btnLoginGoogle = document.getElementById('loginGoogleBtn');
+        if (btnLoginGoogle) btnLoginGoogle.innerText = "Entrar com Google";
+        
+        const btnLoginEmail = document.getElementById('loginEmailBtn');
+        if (btnLoginEmail) btnLoginEmail.innerText = "Entrar no Sistema";
+        
         mostrarTela("telaLogin");
     }
 });
