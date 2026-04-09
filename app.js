@@ -4,11 +4,9 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 
 // ==========================================
 // 👑 PROTEÇÃO DOS FUNDADORES DO SISTEMA 👑
-// Coloque os e-mails separados por vírgula e entre aspas.
 // ==========================================
 const EMAILS_DOS_DONOS = [
-    "willyam.rodrigo6@gmail.com",    // <-- Coloque o seu e-mail aqui
-    "willyamrodrigo6@gmail.com" // <-- Coloque o segundo e-mail aqui
+    "willyamrodrigo6@gmail.com","willyamrodrigo6@gmail.com" // <- Seu e-mail sagrado
 ]; 
 
 const firebaseConfig = {
@@ -29,7 +27,7 @@ let isAdmin = false;
 let registrosAtuais = {}; 
 
 // ==========================================
-// FUNÇÕES DE INTERFACE
+// FUNÇÕES DE INTERFACE E CONTROLE DE CAMPOS
 // ==========================================
 function mostrarTela(id) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
@@ -51,6 +49,28 @@ const setEditVal = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.value = (val !== null && val !== undefined) ? val : "";
 };
+
+// Função para Travar/Destravar os inputs de parâmetros
+function toggleCampos(liberar) {
+    const area = document.getElementById("areaParametros");
+    const inputs = document.querySelectorAll("#areaParametros input");
+    const btnSalvar = document.getElementById("btnSalvarMedicao");
+
+    if (!area || !btnSalvar) return;
+
+    if (liberar) {
+        area.classList.remove("area-bloqueada");
+        inputs.forEach(inp => inp.disabled = false);
+        btnSalvar.disabled = false;
+        btnSalvar.style.backgroundColor = "#007bff";
+        btnSalvar.innerText = "Salvar Medição";
+    } else {
+        area.classList.add("area-bloqueada");
+        inputs.forEach(inp => inp.disabled = true);
+        btnSalvar.disabled = true;
+        btnSalvar.style.backgroundColor = "#6c757d";
+    }
+}
 
 // ==========================================
 // FUNÇÃO HISTÓRICO
@@ -122,7 +142,7 @@ async function carregarHistorico() {
 }
 
 // ==========================================
-// FUNÇÃO PAINEL ADMIN (VERIFICA LISTA VIP)
+// FUNÇÃO PAINEL ADMIN
 // ==========================================
 async function carregarListaUsuarios() {
     const listaUsuarios = document.getElementById("listaUsuariosAdmin");
@@ -139,8 +159,6 @@ async function carregarListaUsuarios() {
             const uId = docSnap.id;
             
             const isEuMesmo = (uId === auth.currentUser.uid);
-            
-            // A mágica acontece aqui: verifica se o email está dentro da lista EMAILS_DOS_DONOS
             const isDonoDoApp = EMAILS_DOS_DONOS.includes(u.email); 
             
             let btnAcao = "";
@@ -232,60 +250,66 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// RADAR DE DUPLICIDADE (BLOQUEIA O BOTAO)
+// RADAR DE DUPLICIDADE E LIBERAÇÃO DE CAMPOS
 // ==========================================
 async function verificarDuplicidade() {
-    const turnoEl = document.getElementById("turno");
-    const tratamentoEl = document.getElementById("tratamento");
-    const caixaEl = document.getElementById("caixa");
+    const turnoVal = document.getElementById("turno")?.value;
+    const tratamentoVal = document.getElementById("tratamento")?.value;
+    const caixaVal = document.getElementById("caixa")?.value;
     const aviso = document.getElementById("avisoDuplicidade");
     const btnSalvar = document.getElementById("btnSalvarMedicao");
 
-    if (!aviso || !btnSalvar) return; 
+    if (!aviso || !btnSalvar) return;
 
-    // Se todos estiverem preenchidos, faz a checagem
-    if (turnoEl.value && tratamentoEl.value && caixaEl.value) {
-        try {
-            const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(40));
-            const snap = await getDocs(q);
-
-            const hojeStr = new Date().toLocaleDateString();
-            let duplicado = false;
-
-            snap.forEach(doc => {
-                const d = doc.data();
-                if (d.timestamp) {
-                    const docDataStr = d.timestamp.toDate().toLocaleDateString();
-                    if (docDataStr === hojeStr && d.turno === turnoEl.value && d.tratamento === tratamentoEl.value && d.caixa === caixaEl.value) {
-                        duplicado = true;
-                    }
-                }
-            });
-
-            if (duplicado) {
-                aviso.style.display = "block";
-                btnSalvar.disabled = true; // Desativa o botão para impedir salvar
-                btnSalvar.style.backgroundColor = "#6c757d"; // Deixa cinza
-                btnSalvar.innerText = "Combinação já registrada!";
-            } else {
-                aviso.style.display = "none";
-                btnSalvar.disabled = false; // Libera o botão
-                btnSalvar.style.backgroundColor = "#007bff"; 
-                btnSalvar.innerText = "Salvar Medição";
-            }
-            
-        } catch (err) {
-            console.error("Erro no radar:", err);
-        }
-    } else {
+    // Se faltar alguma das três informações primárias, mantém os campos bloqueados e o aviso escondido
+    if (!turnoVal || !tratamentoVal || !caixaVal) {
         aviso.style.display = "none";
-        btnSalvar.disabled = false;
-        btnSalvar.style.backgroundColor = "#007bff"; 
-        btnSalvar.innerText = "Salvar Medição";
+        toggleCampos(false); 
+        btnSalvar.innerText = "Preencha Turno, Tratamento e Caixa";
+        return;
+    }
+
+    // Se os três foram escolhidos, vamos checar no banco (comparação de data à prova de falhas)
+    try {
+        const q = query(collection(db, "medicoes"), orderBy("timestamp", "desc"), limit(40));
+        const snap = await getDocs(q);
+
+        const hoje = new Date();
+        let duplicado = false;
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d.timestamp) {
+                const dataDoc = d.timestamp.toDate();
+                // Verifica dia, mês, ano, turno, tratamento e caixa
+                if (dataDoc.getDate() === hoje.getDate() &&
+                    dataDoc.getMonth() === hoje.getMonth() &&
+                    dataDoc.getFullYear() === hoje.getFullYear() &&
+                    d.turno === turnoVal && 
+                    d.tratamento === tratamentoVal && 
+                    d.caixa === caixaVal) {
+                    duplicado = true;
+                }
+            }
+        });
+
+        if (duplicado) {
+            // Acende o vermelho, bloqueia os inputs e o botão
+            aviso.style.display = "block";
+            toggleCampos(false);
+            btnSalvar.innerText = "Combinação já registrada!";
+        } else {
+            // Tudo limpo! Libera os campos para digitar e esconde o aviso
+            aviso.style.display = "none";
+            toggleCampos(true);
+        }
+        
+    } catch (err) {
+        console.error("Erro no radar:", err);
     }
 }
 
-// Escuta qualquer mudança nas caixas para ativar o radar
+// Escuta qualquer mudança nas caixas para ativar a lógica
 document.addEventListener('change', (e) => {
     if (e.target.id === 'turno' || e.target.id === 'tratamento' || e.target.id === 'caixa') {
         verificarDuplicidade();
@@ -330,7 +354,7 @@ document.addEventListener('click', async (e) => {
         } catch (err) { alert("Erro: " + err.message); e.target.innerText = "Salvar Alterações"; }
     }
 
-    // ABRIR JANELA DE EDIÇÃO (LÁPIS)
+    // ABRIR JANELA DE EDIÇÃO
     const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
         if (!isAdmin) return alert("Acesso negado.");
@@ -505,10 +529,8 @@ document.addEventListener('submit', async (e) => {
     if (e.target.id === 'formMedicao') {
         e.preventDefault();
         
-        // Proteção EXTRA: Se o botão estiver desativado (por causa da duplicidade), não faz nada.
         const btn = document.getElementById("btnSalvarMedicao");
         if(btn && btn.disabled) return;
-        
         if(btn) btn.disabled = true;
         
         try {
@@ -532,25 +554,29 @@ document.addEventListener('submit', async (e) => {
             });
             alert("Medição salva com sucesso!");
             
-            // ===== O RESET INTELIGENTE AQUI =====
-            // Limpa todos os números
+            // RESET: Limpa os inputs numéricos
             document.querySelectorAll('#formMedicao input[type="number"]').forEach(input => input.value = '');
-            // Limpa o Tratamento e a Caixa para forçar a pessoa a escolher o próximo tanque
+            // Limpa Tratamento e Caixa, forçando nova escolha. O Turno fica!
             document.getElementById("tratamento").value = "";
             document.getElementById("caixa").value = "";
-            // O Turno continua intacto (ex: Manhã)
             
-            // Reavalia a duplicidade (que agora vai dar falso porque limpamos a caixa)
-            verificarDuplicidade();
+            // Trava os campos novamente
+            toggleCampos(false);
+            
+            // Esconde aviso
+            const aviso = document.getElementById("avisoDuplicidade");
+            if (aviso) aviso.style.display = "none";
+            
+            // Reseta botão
+            if(btn) btn.innerText = "Preencha Turno, Tratamento e Caixa";
 
         } catch (err) { 
             alert("Erro ao salvar: " + err.message); 
-        } finally { 
-            if(btn && btn.innerText === "Salvar Medição") btn.disabled = false; 
+            if(btn) btn.disabled = false;
         }
     }
 
-    // SALVAR EDIÇÃO DE UMA MEDIÇÃO (NOVO)
+    // SALVAR EDIÇÃO DE UMA MEDIÇÃO
     if (e.target.id === 'formEditarMedicao') {
         e.preventDefault();
         if (!isAdmin) return alert("Acesso negado.");
