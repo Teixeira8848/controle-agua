@@ -70,10 +70,10 @@
           <button id="btnBaixarRelatorio" style="width: auto; background-color: #28a745; color: white; padding: 5px 10px; margin: 0; border: none; border-radius: 5px; cursor: pointer; display: none;">📥 Planilha</button>
         </div>
 
-        <form id="formMedicao">
+        <form id="formMedicao" autocomplete="off">
           <label style="display: block; margin-top: 10px;">Turno:</label>
           <select id="turno" required style="width: 100%; padding: 8px; box-sizing: border-box;">
-            <option value="" disabled selected>Selecione o turno</option>
+            <option value="" selected>Selecione o turno</option>
             <option value="Manhã">Manhã</option>
             <option value="Tarde">Tarde</option>
           </select>
@@ -82,7 +82,7 @@
             <div style="flex: 1;">
               <label>Tratamento:</label>
               <select id="tratamento" required style="width: 100%; padding: 8px; box-sizing: border-box;">
-                <option value="" disabled selected>Escolha</option>
+                <option value="" selected>Escolha...</option>
                 <option value="Tratamento 1">Tratamento 1</option>
                 <option value="Tratamento 2">Tratamento 2</option>
                 <option value="Tratamento 3">Tratamento 3</option>
@@ -91,7 +91,7 @@
             <div style="flex: 1;">
               <label>Caixa:</label>
               <select id="caixa" required style="width: 100%; padding: 8px; box-sizing: border-box;">
-                <option value="" disabled selected>Escolha</option>
+                <option value="" selected>Escolha...</option>
                 <option value="Caixa 1">Caixa 1</option>
                 <option value="Caixa 2">Caixa 2</option>
                 <option value="Caixa 3">Caixa 3</option>
@@ -159,7 +159,7 @@
         <div class="modal-content">
             <h3 style="margin-top: 0;">Corrigir Medição</h3>
             <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">A data e o coletor originais serão mantidos.</p>
-            <form id="formEditarMedicao">
+            <form id="formEditarMedicao" autocomplete="off">
                 <input type="hidden" id="editIdDoc">
                 
                 <label style="display: block;">Turno:</label>
